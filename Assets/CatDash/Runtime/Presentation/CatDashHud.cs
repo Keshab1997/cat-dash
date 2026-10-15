@@ -10,6 +10,9 @@ namespace CatDash.Presentation
     /// never throws. Start/Restart go through the frozen RunController API only
     /// (<c>BeginRun</c> / <c>Restart</c> via <see cref="RunController.Active"/>); distance comes from the
     /// <see cref="IRunObserver"/> callbacks the controller raises.
+    /// Registration: Agent A's RunController does not discover observers, so the HUD registers itself with
+    /// <see cref="RunController.Active"/> through the frozen RegisterObserver API (as RunInput does) and
+    /// unregisters on disable.
     /// </remarks>
     public class CatDashHud : MonoBehaviour, IRunObserver
     {
@@ -19,6 +22,7 @@ namespace CatDash.Presentation
         [SerializeField] private Text distanceLabel;
         [SerializeField] private Text gameOverDistanceLabel;
 
+        private RunController registeredController;
         private bool hudVisible = true;
         private bool gameOver;
         private RunState state = RunState.Ready;
@@ -42,6 +46,37 @@ namespace CatDash.Presentation
         {
             int whole = Mathf.FloorToInt(Mathf.Max(0f, meters));
             return whole.ToString(System.Globalization.CultureInfo.InvariantCulture) + " m";
+        }
+
+        private void OnEnable()
+        {
+            EnsureRegistered();
+        }
+
+        private void OnDisable()
+        {
+            ReleaseRegistration();
+        }
+
+        private void Update()
+        {
+            EnsureRegistered(); // RunController.Active may appear after this component was enabled
+        }
+
+        private void EnsureRegistered()
+        {
+            RunController controller = RunController.Active;
+            if (controller == null || registeredController == controller) return;
+
+            ReleaseRegistration();
+            registeredController = controller;
+            controller.RegisterObserver(this);
+        }
+
+        private void ReleaseRegistration()
+        {
+            if (registeredController != null) registeredController.UnregisterObserver(this);
+            registeredController = null;
         }
 
         public void OnRunStateChanged(RunState runState)

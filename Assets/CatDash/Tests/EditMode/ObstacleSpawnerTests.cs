@@ -244,6 +244,60 @@ namespace CatDash.Tests.EditMode
             Assert.AreEqual(0, spawner.MaxPooledInstances);
         }
 
+        [Test]
+        public void Pooled_Obstacles_Expose_Trigger_Colliders()
+        {
+            spawner.OnRunStateChanged(RunState.Running);
+            spawner.OnDistanceChanged(120f);
+
+            int checkedInstances = 0;
+            foreach (Transform poolChild in spawner.transform)
+            {
+                if (poolChild.name != "Obstacle Pool") continue;
+                foreach (Transform instance in poolChild)
+                {
+                    if (!instance.gameObject.activeSelf) continue;
+
+                    Collider[] colliders = instance.GetComponentsInChildren<Collider>(true);
+                    Assert.Greater(colliders.Length, 0, instance.name + " has no collider, so a hit could never register.");
+                    for (int i = 0; i < colliders.Length; i++)
+                    {
+                        Assert.IsTrue(colliders[i].isTrigger,
+                                      instance.name + " ships a blocking collider; Agent A's contact needs triggers.");
+                    }
+                    checkedInstances++;
+                }
+            }
+
+            Assert.Greater(checkedInstances, 0, "No live obstacle was found to check.");
+        }
+
+        [Test]
+        public void A_Blocking_Collider_Becomes_A_Trigger_Only_On_The_Clone()
+        {
+            var source = prefabRoot.AddComponent<BoxCollider>();
+            Assert.IsFalse(source.isTrigger);
+
+            spawner.Configure(new[] { prefab }, 1);
+            spawner.OnRunStateChanged(RunState.Running);
+            spawner.OnDistanceChanged(60f);
+
+            foreach (Transform poolChild in spawner.transform)
+            {
+                if (poolChild.name != "Obstacle Pool") continue;
+                foreach (Transform instance in poolChild)
+                {
+                    Collider[] colliders = instance.GetComponentsInChildren<Collider>(true);
+                    for (int i = 0; i < colliders.Length; i++)
+                    {
+                        Assert.IsTrue(colliders[i].isTrigger, "The clone kept a blocking collider.");
+                    }
+                }
+            }
+
+            Assert.IsFalse(source.isTrigger, "The source prefab must never be modified.");
+        }
+
         private List<string> SnapshotRows(int fromRow, int toRow)
         {
             var snapshot = new List<string>(toRow - fromRow + 1);

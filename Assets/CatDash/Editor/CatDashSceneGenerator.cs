@@ -449,6 +449,13 @@ namespace CatDash.EditorTools
                 ObstacleMarker marker = prefab.GetComponent<ObstacleMarker>();
                 if (marker == null) continue;
 
+                if (!HasTriggerCollider(prefab))
+                {
+                    Debug.LogWarning("CatDash: " + prefabPaths[i] + " ships no trigger collider. Agent A's PlayerMover " +
+                                     "only reacts to trigger contacts; ObstacleSpawner normalises pooled clones at " +
+                                     "runtime, but the prefab should carry a trigger collider for clarity.");
+                }
+
                 markers.Add(marker);
                 notes.Add("obstacle prefab = " + prefabPaths[i]);
             }
@@ -519,7 +526,10 @@ namespace CatDash.EditorTools
             visual.transform.SetParent(template.transform, false);
             visual.transform.localPosition = new Vector3(-bounds.center.x, -bounds.min.y, -bounds.center.z);
 
+            // Contact contract with Agent A: PlayerMover reacts to OnTriggerEnter/OnTriggerStay, so obstacle
+            // colliders must be triggers or a run would never end.
             var box = template.AddComponent<BoxCollider>();
+            box.isTrigger = true;
             box.center = new Vector3(0f, bounds.extents.y, 0f);
             box.size = new Vector3(Mathf.Max(0.1f, bounds.size.x), Mathf.Max(0.1f, bounds.size.y),
                                    Mathf.Max(0.1f, bounds.size.z));
@@ -527,6 +537,16 @@ namespace CatDash.EditorTools
             ObstacleMarker marker = template.AddComponent<ObstacleMarker>();
             template.SetActive(false);
             return marker;
+        }
+
+        private static bool HasTriggerCollider(GameObject root)
+        {
+            Collider[] colliders = root.GetComponentsInChildren<Collider>(true);
+            for (int i = 0; i < colliders.Length; i++)
+            {
+                if (colliders[i] != null && colliders[i].isTrigger) return true;
+            }
+            return false;
         }
 
         private static bool IsCatModel(string path)

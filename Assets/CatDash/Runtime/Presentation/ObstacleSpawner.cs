@@ -13,6 +13,11 @@ namespace CatDash.Presentation
     /// Bounds: every obstacle instance comes from a per-prefab pool capped at <c>poolSizePerPrefab</c>;
     /// if a pool is exhausted the lane is simply left free (never an on-the-fly Instantiate, never a
     /// destroyed-then-recreated instance). Obstacles behind the player are returned to their pool.
+    /// Registration: Agent A's RunController does not discover observers, so this component registers
+    /// itself with <see cref="RunController.Active"/> through the frozen RegisterObserver API (the same
+    /// pattern Agent A used for RunInput) and unregisters on disable.
+    /// Contact: PlayerMover reacts to triggers only (OnTriggerEnter/OnTriggerStay), so pooled clones are
+    /// normalised to expose trigger colliders (never the prefab asset).
     /// </remarks>
     public class ObstacleSpawner : MonoBehaviour, IRunObserver
     {
@@ -38,6 +43,7 @@ namespace CatDash.Presentation
         private float playerZ;
         private RunState state = RunState.Ready;
         private Transform poolParent;
+        private RunController registeredController;
 
         /// <summary>Obstacles currently in the scene (not pooled); never above <see cref="MaxPooledInstances"/>.</summary>
         public int ActiveObstacleCount
@@ -143,6 +149,37 @@ namespace CatDash.Presentation
             state = RunState.GameOver;
         }
 
+        private void OnEnable()
+        {
+            EnsureRegistered();
+        }
+
+        private void OnDisable()
+        {
+            ReleaseRegistration();
+        }
+
+        private void Update()
+        {
+            EnsureRegistered(); // RunController.Active may appear after this component was enabled
+        }
+
+        private void EnsureRegistered()
+        {
+            RunController controller = RunController.Active;
+            if (controller == null || registeredController == controller) return;
+
+            ReleaseRegistration();
+            registeredController = controller;
+            controller.RegisterObserver(this);
+        }
+
+        private void ReleaseRegistration()
+        {
+            if (registeredController != null) registeredController.UnregisterObserver(this);
+            registeredController = null;
+        }
+
         private int RowSeed(int rowIndex)
         {
             unchecked
@@ -225,6 +262,7 @@ namespace CatDash.Presentation
 
             ObstacleMarker instance = UnityEngine.Object.Instantiate(prefab);
             instance.name = prefab.name + "_pooled";
+            ApplyContactContract(instance);
             createdByPrefab[prefab] = spawned + 1;
             created.Add(instance);
             prefabOf[instance] = prefab;
@@ -287,6 +325,41 @@ namespace CatDash.Presentation
                 active.RemoveAt(i);
                 ReturnToPool(obstacle);
             }
+        }
+
+        /// <summary>
+        /// Agent A's PlayerMover reacts to trigger contacts only. Every collider of a pooled clone therefore
+        /// becomes a trigger, and a generated trigger BoxCollider is added when the source ships none.
+        /// Only the clone is touched: the prefab asset is never modified.
+        /// </summary>
+        private static void ApplyContactContract(ObstacleMarker instance)
+        {
+            Collider[] colliders = instance.GetComponentsInChildren<Collider>(true);
+            if (colliders.Length > 0)
+            {
+                for (int i = 0; i < colliders.Length; i++)
+                {
+                    if (colliders[i] != null) colliders[i].isTrigger = true;
+                }
+                return;
+            }
+
+            var box = instance.gameObject.AddComponent<BoxCollider>();
+            box.isTrigger = true;
+            Bounds bounds = MeasureInstanceBounds(instance.gameObject);
+            box.center = bounds.center - instance.transform.position;
+            box.size = new Vector3(Mathf.Max(0.2f, bounds.size.x), Mathf.Max(0.2f, bounds.size.y),
+                                   Mathf.Max(0.2f, bounds.size.z));
+        }
+
+        private static Bounds MeasureInstanceBounds(GameObject root)
+        {
+            Renderer[] renderers = root.GetComponentsInChildren<Renderer>(true);
+            if (renderers.Length == 0) return new Bounds(new Vector3(0f, 0.45f, 0f), new Vector3(0.9f, 0.9f, 0.9f));
+
+            Bounds bounds = renderers[0].bounds;
+            for (int i = 1; i < renderers.Length; i++) bounds.Encapsulate(renderers[i].bounds);
+            return bounds;
         }
 
         private void ReleasePooledInstances()
