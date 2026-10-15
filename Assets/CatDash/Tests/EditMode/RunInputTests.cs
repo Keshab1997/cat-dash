@@ -1,0 +1,76 @@
+using System;
+using NUnit.Framework;
+using UnityEngine;
+using CatDash.Gameplay;
+
+public class RunInputTests
+{
+    private GameObject go;
+    private RunController rc;
+    private RunInput input;
+
+    [SetUp]
+    public void SetUp()
+    {
+        go = new GameObject("RunInputTests");
+        rc = go.AddComponent<RunController>();
+        input = go.AddComponent<RunInput>();
+        rc.RegisterObserver(input);
+    }
+
+    [TearDown]
+    public void TearDown()
+    {
+        if (go != null) UnityEngine.Object.DestroyImmediate(go);
+    }
+
+    [Test]
+    public void RaiseSwipe_WhenDisabled_DoesNotEmit()
+    {
+        int count = 0;
+        input.LaneRequested += d => count++;
+        input.RaiseSwipe(1);
+        Assert.AreEqual(0, count);
+    }
+
+    [Test]
+    public void RaiseSwipe_WhenEnabled_EmitsDirection()
+    {
+        input.EnableInput();
+        int count = 0;
+        int last = 0;
+        input.LaneRequested += d => { count++; last = d; };
+        input.RaiseSwipe(-1);
+        Assert.AreEqual(1, count);
+        Assert.AreEqual(-1, last);
+    }
+
+    [Test]
+    public void RunState_Running_EnablesInput()
+    {
+        rc.BeginRun();
+        Assert.IsTrue(input.InputEnabled);
+    }
+
+    [Test]
+    public void RunState_GameOver_DisablesInput()
+    {
+        rc.BeginRun();
+        rc.EndRun();
+        Assert.IsFalse(input.InputEnabled);
+    }
+
+    [Test]
+    public void PauseResumeCycle_DistanceStaysAndInputReenabled()
+    {
+        rc.BeginRun();
+        rc.Tick(0.5f);
+        float before = rc.DistanceMeters;
+        input.OnApplicationPause(true);
+        Assert.IsFalse(input.InputEnabled);
+        rc.Tick(0.5f);
+        Assert.AreEqual(before, rc.DistanceMeters, 0.001f);
+        rc.Restart();
+        Assert.IsTrue(input.InputEnabled);
+    }
+}
