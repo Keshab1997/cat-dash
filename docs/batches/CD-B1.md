@@ -106,7 +106,15 @@ a frozen member. Implementations live in the owning agent's files.
 
 ## Known risks carried into the batch
 
-### 2026-10-16 — CD-B1-A6 (polish) reviewed, **held: one deterministic test bug**
+### 2026-10-16 — CD-B1-A6 + A7 reviewed and MERGED (`e158334381f12aba5ce5eeb26fe640be96fe12c9`)
+A7 (`49ae8bfdf29960aba9491d581db0155184c91f38`, one commit, only `RunInputTests.cs`, +6 lines) pairs every driver:
+`input.OnApplicationPause(x)` is always followed by `rc.OnApplicationPause(x)` and the same for focus, so `rc.paused` is what
+freezes the sim; the pause window now really is `paused == true` before `rc.Tick(0.5f)` and `paused == false` after resume.
+Verified `RunController.OnApplicationPause/OnApplicationFocus` are public (RunController.cs:120-127) before merging, so the test
+compiles by the same seam convention as `PlayerMover.HandleObstacleContact`. A's "don't touch AfterGameOver" respect was honoured —
+it never asserts distance, so it stays as is. preflight = 0 errors on branch tip and on merged main; Unity = still NOT RUN.
+
+### 2026-10-16 — CD-B1-A6 (polish) reviewed, held then cleared (see above): original finding
 Branch `work/agent-a/cd-b1-polish`, tip `71056af3596b50c99827a6eefd5f49d7db01171c`, cut from `4cec55e` (correct baseline),
 one commit, paths exactly the three assigned files, `git merge-tree` vs `main` = no conflicts, preflight = 0 errors.
 Done well: `Update()` early-out `if (registeredController == null || registeredController != RunController.Active) TryRegister();`
