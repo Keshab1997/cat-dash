@@ -1,0 +1,6 @@
+{
+  "name": "UnityAgentKit.PlayMode",
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ]
+}

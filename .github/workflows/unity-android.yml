@@ -1,0 +1,195 @@
+name: Unity Android
+on:
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: 'Batch boundary: preflight / filtered tests / full tests / tested build / internal upload'
+        type: choice
+        options: [preflight, targeted, full, build, internal]
+        default: preflight
+      test_filter:
+        description: 'Targeted only: exact test class/method (required for targeted)'
+        type: string
+        default: ''
+      version_code:
+        description: 'Build/internal: integer GREATER than all prior Play versionCodes'
+        type: string
+        default: ''
+      target_api:
+        description: 'Build/internal: installed SDK API meeting current Google Play policy'
+        type: string
+        default: '36'
+      confirmation:
+        description: 'Internal only: type UPLOAD INTERNAL (never production)'
+        type: string
+        default: ''
+permissions:
+  contents: read
+concurrency:
+  group: unity-android-${{ github.repository }}
+  cancel-in-progress: false
+jobs:
+  batch:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      checks: write
+    outputs:
+      package: ${{ steps.gate.outputs.package }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          lfs: true
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - name: Cheap source preflight
+        run: python3 tool/preflight.py
+      - name: Fail fast — inputs and required secrets
+        id: gate
+        env:
+          KIT_STAGE: ${{ inputs.stage }}
+          KIT_FILTER: ${{ inputs.test_filter }}
+          KIT_VERSION_CODE: ${{ inputs.version_code }}
+          KIT_TARGET_API: ${{ inputs.target_api }}
+          KIT_CONFIRM: ${{ inputs.confirmation }}
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        run: python3 tool/ci_gate.py
+      - name: Recover Android build space (standard runner only)
+        if: inputs.stage != 'preflight'
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup
+          df -h /
+      - name: Restore Unity Library
+        if: inputs.stage != 'preflight'
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: Library
+          key: unity-linux-android-${{ hashFiles('ProjectSettings/ProjectVersion.txt', 'Packages/**') }}-${{ hashFiles('Assets/**', 'ProjectSettings/**') }}
+          restore-keys: |
+            unity-linux-android-${{ hashFiles('ProjectSettings/ProjectVersion.txt', 'Packages/**') }}-
+      - name: Unity batch tests (one invocation, no automatic retry)
+        if: inputs.stage != 'preflight'
+        uses: game-ci/unity-test-runner@32e57712352b500e17974b245a6dce9e11a73213 # v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          projectPath: .
+          testMode: ${{ inputs.stage == 'targeted' && 'editmode' || 'all' }}
+          customParameters: ${{ inputs.stage == 'targeted' && format('-testFilter {0}', inputs.test_filter) || '' }}
+          coverageEnabled: false
+          artifactsPath: artifacts/tests
+          githubToken: ${{ secrets.GITHUB_TOKEN }}
+      - name: Require real, nonempty passing Unity results
+        if: inputs.stage != 'preflight'
+        env:
+          KIT_STAGE: ${{ inputs.stage }}
+        run: |
+          if [ "$KIT_STAGE" = targeted ]; then
+            python3 tool/verify_test_results.py artifacts/tests
+          else
+            python3 tool/verify_test_results.py artifacts/tests --both
+          fi
+      - name: Signed Android AAB (only after passing tests)
+        if: inputs.stage == 'build' || inputs.stage == 'internal'
+        uses: game-ci/unity-builder@4423ee75828dff56037d1d1cfdac6b68e3a6ba00 # v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          projectPath: .
+          targetPlatform: Android
+          buildMethod: UnityAgentKit.Editor.KitBuild.BuildAndroid
+          versioning: Custom
+          version: ${{ steps.gate.outputs.version }}
+          androidVersionCode: ${{ inputs.version_code }}
+          androidTargetSdkVersion: ${{ inputs.target_api }}
+          androidExportType: androidAppBundle
+          androidKeystoreName: upload.keystore
+          androidKeystoreBase64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          androidKeystorePass: ${{ secrets.KEYSTORE_PASSWORD }}
+          androidKeyaliasName: ${{ secrets.KEY_ALIAS }}
+          androidKeyaliasPass: ${{ secrets.KEY_PASSWORD }}
+          allowDirtyBuild: true
+      - name: Build provenance and checksum
+        if: inputs.stage == 'build' || inputs.stage == 'internal'
+        run: |
+          test -s build/Android/Game.aab
+          python3 - <<'PYCODE'
+          import hashlib,json,os
+          from pathlib import Path
+          p=Path('build/Android/Game.aab')
+          data={'commit':os.environ['GITHUB_SHA'],'run':os.environ['GITHUB_RUN_ID'],
+                'unity':Path('ProjectSettings/ProjectVersion.txt').read_text().strip(),
+                'config':json.loads(Path('unity-kit.json').read_text()),
+                'sha256':hashlib.sha256(p.read_bytes()).hexdigest()}
+          Path('build/Android/provenance.json').write_text(json.dumps(data,indent=2))
+          PYCODE
+      - name: Store AAB from THIS tested commit
+        if: inputs.stage == 'build' || inputs.stage == 'internal'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: android-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            build/Android/Game.aab
+            build/Android/provenance.json
+          if-no-files-found: error
+          retention-days: 3
+      - name: Keep test evidence even on failure
+        if: always() && inputs.stage != 'preflight'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: unity-test-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/tests
+          if-no-files-found: warn
+          retention-days: 3
+      - name: Human batch report
+        if: always()
+        env:
+          KIT_STAGE: ${{ inputs.stage }}
+          KIT_STATUS: ${{ job.status }}
+        run: |
+          printf '## Unity batch\nStage: %s\n\nJob: %s\n\nCommit: %s\n\nPhone QA is NOT automated. No automatic retries.\n' "$KIT_STAGE" "$KIT_STATUS" "$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+  internal:
+    if: inputs.stage == 'internal' && inputs.confirmation == 'UPLOAD INTERNAL' && github.ref == 'refs/heads/main'
+    needs: batch
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    environment: play-internal
+    steps:
+      - name: Download only this run's tested AAB
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: android-${{ github.sha }}-${{ github.run_attempt }}
+          path: release
+      - name: Verify artifact checksum and source commit
+        run: |
+          python3 - <<'PYCODE'
+          import hashlib,json,os
+          from pathlib import Path
+          p=Path('release/Game.aab');d=json.loads(Path('release/provenance.json').read_text())
+          assert d['commit']==os.environ['GITHUB_SHA'], 'Commit mismatch'
+          assert d['run']==os.environ['GITHUB_RUN_ID'], 'Run mismatch'
+          assert hashlib.sha256(p.read_bytes()).hexdigest()==d['sha256'], 'Checksum mismatch'
+          PYCODE
+      - name: Upload INTERNAL ONLY — explicitly requested by human
+        uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: ${{ needs.batch.outputs.package }}
+          releaseFiles: release/Game.aab
+          track: internal
+          status: completed
+          releaseName: internal-${{ inputs.version_code }}-${{ github.sha }}

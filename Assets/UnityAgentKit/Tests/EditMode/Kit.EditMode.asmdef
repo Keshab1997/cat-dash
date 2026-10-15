@@ -1,0 +1,9 @@
+{
+  "name": "UnityAgentKit.EditMode",
+  "includePlatforms": [
+    "Editor"
+  ],
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ]
+}
