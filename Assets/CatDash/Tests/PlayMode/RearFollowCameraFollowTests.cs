@@ -26,7 +26,7 @@ public class RearFollowCameraFollowTests
             yield return null;
         }
 
-        Debug.Log("RearFollowCamera convergence elapsed: " + sw.Elapsed);
+        UnityEngine.Debug.Log("RearFollowCamera convergence elapsed: " + sw.Elapsed);
         Assert.Less(Vector3.Distance(camGo.transform.position, desired), 0.1f);
 
         UnityEngine.Object.Destroy(camGo);
