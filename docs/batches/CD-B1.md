@@ -106,6 +106,23 @@ a frozen member. Implementations live in the owning agent's files.
 
 ## Known risks carried into the batch
 
+### 2026-10-16 — CD-B1-A8 and CD-B1-C2 reviewed and MERGED (batch is ready for a re-run)
+Both cut from `c53f13b` (= main tip at dispatch), zero file overlap, `--no-ff`, no conflicts; preflight 0 errors on each tip and on merged main.
+- **A8** `4e115ba7069696bdadf2eaef2f53fe83aa0b7368`: `Active` now bound in `Awake` (the lifecycle Unity actually guarantees for the
+  inactive EditMode test scene — that is why `AddComponent` alone left it null) plus `OnDestroy` clearing; `RunInput.Awake → TryRegister`;
+  resume guard extended with the `RunController.Active` fallback; new `IsRegistered` seam and a test proving registration right after
+  `AddComponent`; PlayMode camera test switched from 60 frames to a bounded `Stopwatch` wait with the elapsed time logged. No runtime
+  behaviour beyond these, no assertion removed.
+- **C2** `1d41ab9` + `b1ac268523f02fb5a7c62192cd384d7ed0439045`: C found the actual production bug I could not explain from reading —
+  after a long distance jump `SpawnRowsUpTo` resumed at the *oldest unplanned* row, so it rented live pool instances for rows the player
+  had already passed (z=64 with the limit at 385) instead of the window ahead. Fix: `nextRowIndex` fast-forwards past the despawn line
+  (`firstLiveRow`), a per-row `continue` as belt-and-braces, and one post-pass `DespawnBehind` no-op guard; rule now single-sourced in
+  `DespawnLimit`. Tests assert the contract through `CountActiveBehind` (stepped 0→2000, single 400 m jump, post-jump run) instead of
+  walking the "Obstacle Pool" hierarchy, which C documents as inherently ambiguous because TrySpawn parents live instances there too.
+  Pool-cap assertions are kept, not dropped; the one-step `> 0` check became a 320 m sweep, which is stronger, not weaker.
+Merged `main`: `665c550f6b8f010db443058f86ed1ebe697463ad`. Expected on the next owner-dispatched run: EditMode 75/76 (1 skip stays
+`[Explicit]` by design) and PlayMode 3/3. Still NOT RUN: device FPS/perf, the visual gate (owner's Unity capture from the merged SHA).
+
 ### 2026-10-16 — SECOND CI run (0ffad54): Unity actually ran. Real numbers, no more NOT RUN
 game-ci fix worked: **compilation clean, all 5 assemblies + UGUI `2.0.0` discovered** (CD-B1 risk 1 and 2 = cleared),
 EditMode 68/75 (1 skipped = C's `[Explicit]` scene test, by design), PlayMode 2/3 → **7 failed, 70/78**
