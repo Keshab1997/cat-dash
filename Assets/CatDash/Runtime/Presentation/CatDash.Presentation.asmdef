@@ -2,7 +2,8 @@
   "name": "CatDash.Presentation",
   "rootNamespace": "",
   "references": [
-    "CatDash.Gameplay"
+    "CatDash.Gameplay",
+    "UnityEngine.UI"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],
