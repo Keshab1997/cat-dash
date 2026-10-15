@@ -141,6 +141,12 @@ namespace CatDash.Presentation
             playerZ = meters;
             DespawnBehind(playerZ);
             SpawnRowsUpTo(playerZ + spawnAheadDistance);
+
+            // Safety net for a large jump (pause/resume, a hitch, or a caller that steps straight to 400 m):
+            // nothing may stay live behind the despawn line once this step has finished. The spawn pass below
+            // already refuses to plan rows behind the player, so this is normally a cheap no-op; it is kept
+            // because a live obstacle behind the player is unreachable waste, and the verify cost is O(active).
+            if (AnyActiveObstacleBehind(playerZ)) DespawnBehind(playerZ);
         }
 
         public void OnRunEnded(float finalMeters)
@@ -192,12 +198,27 @@ namespace CatDash.Presentation
         {
             if (rowSpacing <= 0f) return;
 
+            // CD-B1 second CI run (2026-10-16): after a single OnDistanceChanged(400f) jump with
+            // poolSizePerPrefab = 2, an instance stayed live at z = 64 while the despawn limit was 385 — a
+            // 321 m gap BEHIND the player (row 8; reported by ObstacleSpawnerTests). The spawn pass resumed
+            // at the oldest unplanned row and rented pool instances for rows the player had already passed,
+            // so the pool was spent behind the player instead of in the window he is running into. Rows
+            // fully behind the live line are therefore skipped, never populated: they cannot be reached.
+            // (The stepped 0 -> 2000 m sweep never exposed this, because each step only planned ~8 m of new
+            // rows, all of them ahead of the line.)
+            float liveStart = DespawnLimit(playerZ);
+            int firstLiveRow = Mathf.Max(1, Mathf.CeilToInt(liveStart / rowSpacing));
+            if (nextRowIndex < firstLiveRow) nextRowIndex = firstLiveRow;
+
             int guard = 0;
             while (nextRowIndex * rowSpacing <= zLimit && guard < MaxRowsPerUpdate)
             {
-                SpawnRow(nextRowIndex);
+                int rowIndex = nextRowIndex;
                 nextRowIndex++;
                 guard++;
+
+                if (rowIndex * rowSpacing < liveStart) continue; // belt and braces behind the fast-forward
+                SpawnRow(rowIndex);
             }
         }
 
@@ -309,9 +330,41 @@ namespace CatDash.Presentation
             }
         }
 
+        /// <summary>World Z below which an obstacle counts as behind the player. Single source for the rule.</summary>
+        private float DespawnLimit(float playerZValue)
+        {
+            return playerZValue - Mathf.Max(0f, despawnBehindDistance);
+        }
+
+        /// <summary>
+        /// Test seam: how many live obstacles sit behind the despawn line for this player position. The
+        /// contract is that this is 0 whenever an OnDistanceChanged step has returned; recycled instances are
+        /// inactive and back in their per-prefab pool, so they are not counted. Assertions should use this
+        /// (or ActiveObstacleCount) rather than walking the "Obstacle Pool" hierarchy: TrySpawn parents every
+        /// live instance under that same holder, so an active child there is not proof of a leak.
+        /// </summary>
+        public int CountActiveBehind(float playerZValue)
+        {
+            float limit = DespawnLimit(playerZValue);
+            int behind = 0;
+            for (int i = 0; i < active.Count; i++)
+            {
+                ObstacleMarker obstacle = active[i];
+                if (obstacle == null) continue;
+                if (obstacle.transform.position.z < limit) behind++;
+            }
+            return behind;
+        }
+
+        /// <summary>True when any live obstacle is still behind the despawn line (see <see cref="CountActiveBehind"/>).</summary>
+        private bool AnyActiveObstacleBehind(float playerZValue)
+        {
+            return CountActiveBehind(playerZValue) > 0;
+        }
+
         private void DespawnBehind(float playerZValue)
         {
-            float limit = playerZValue - Mathf.Max(0f, despawnBehindDistance);
+            float limit = DespawnLimit(playerZValue);
             for (int i = active.Count - 1; i >= 0; i--)
             {
                 ObstacleMarker obstacle = active[i];
