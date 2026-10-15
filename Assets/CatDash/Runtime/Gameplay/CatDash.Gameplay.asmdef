@@ -1,0 +1,12 @@
+{
+  "name": "CatDash.Gameplay",
+  "rootNamespace": "",
+  "references": [],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "autoReferenced": false,
+  "versionDefines": [],
+  "noEngineReferences": false
+}

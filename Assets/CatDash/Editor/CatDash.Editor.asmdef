@@ -1,0 +1,17 @@
+{
+  "name": "CatDash.Editor",
+  "rootNamespace": "",
+  "references": [
+    "CatDash.Gameplay",
+    "CatDash.Presentation"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "autoReferenced": false,
+  "versionDefines": [],
+  "noEngineReferences": false
+}
