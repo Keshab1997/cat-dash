@@ -125,3 +125,26 @@ FBX is the default for Unity import. Optional GLB export may need a reviewed glT
 importer; do not add importer packages silently. Import once in Unity to create
 `.meta` files, verify scale/materials/collider and record the asset in ASSETS.md.
 This is an example, not a complete character/rig/animation generation service.
+
+## Secrets Check — safe manual readiness report
+Actions → **Secrets Check** → Run workflow (main). Open the run **Summary**.
+Every expected secret has ✅ present / ❌ missing plus basic validation details.
+Missing/invalid secrets make this audit job fail intentionally; the summary still shows
+all rows. Signing/Play secrets may legitimately be absent before those features are used.
+
+- UNITY_LICENSE: XML shape only; email shape/password presence are NOT Unity login proof.
+- Signing: Base64 decoding + local disposable JAR signed/verified with JDK jarsigner;
+  password values are environment-only. No APK/AAB build or upload. PKCS12 may reuse
+  the store password and ignore a separate key password; note that limitation.
+- Play JSON: structure check only by default. Optional `check_play_live` sends a signed
+  assertion to Google's fixed OAuth endpoint, then GETs this app's in-app product list.
+  No product, edit, track or release is created/changed; no app is uploaded.
+  Product-list access is NOT release permission or upload-key validation. A 403/404
+  may mean API/permission/app setup rather than a bad key. Owner resolves it; no retries.
+- No Unity installation or license activation in this workflow; use Unity Android tests
+  for actual Unity activation proof. No credential values/response bodies/artifacts
+  are printed/uploaded; temporary key/probe files are removed. No secrets/settings edited.
+- It reports only the known expected secret names; it does not list arbitrary repo secrets.
+
+Public run summaries expose only secret names/status, not values. Run only trusted main
+code. New game repos need their own secrets; nothing is copied from the kit repo.

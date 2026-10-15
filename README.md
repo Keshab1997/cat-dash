@@ -30,3 +30,9 @@ No secrets were copied/configured. Configure THIS repo's secrets in GitHub UI yo
 `python3 tool/preflight.py` for cheap source checks. At a useful batch boundary:
 **Actions → Unity Android → Run workflow**. Owner controls tests/build/internal upload.
 No ads, paid service, production publishing or automatic CI on push.
+
+## Secret readiness
+Actions → **Secrets Check** → Run workflow (main) → open Summary for ✅/❌ per expected
+secret. No values exposed. Local signing test; optional Google OAuth/Play read check.
+Unity activation and Play release permissions remain separate from presence checks.
+See docs/SETUP.md. The workflow is manual; no secrets have been changed by adding it.
