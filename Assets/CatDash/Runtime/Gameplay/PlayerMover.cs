@@ -8,11 +8,58 @@ namespace CatDash.Gameplay
     {
         [SerializeField] private RunController controller;
 
-        public Lane CurrentLane { get { throw new NotImplementedException("Batch 1: implement per brief."); } }
+        private Lane currentLane = Lane.Center;
+
+        public Lane CurrentLane { get { return currentLane; } }
+
         /// <summary>+1 right, -1 left; ignored at the outer lanes.</summary>
-        public void Step(int direction) { throw new NotImplementedException("Batch 1: implement per brief."); }
-        public void MoveToLane(Lane lane) { throw new NotImplementedException("Batch 1: implement per brief."); }
+        public void Step(int direction)
+        {
+            int idx = (int)currentLane + direction;
+            if (idx < 0) idx = 0;
+            if (idx > Lanes.Count - 1) idx = Lanes.Count - 1;
+            currentLane = (Lane)idx;
+        }
+
+        public void MoveToLane(Lane lane)
+        {
+            currentLane = Lanes.Clamp(lane);
+        }
+
         /// <summary>Restart state: center lane, zero forward progress.</summary>
-        public void ResetToStart() { throw new NotImplementedException("Batch 1: implement per brief."); }
+        public void ResetToStart()
+        {
+            currentLane = Lane.Center;
+            if (transform != null)
+            {
+                Vector3 pos = transform.position;
+                pos.x = Lanes.Offset(Lane.Center);
+                transform.position = pos;
+            }
+        }
+
+        private void Update()
+        {
+            if (controller == null) return;
+            if (!controller.IsRunning) return;
+            float dt = Time.deltaTime;
+            Vector3 pos = transform.position;
+            pos.z += controller.SpeedMetersPerSecond * dt;
+            float targetX = Lanes.Offset(currentLane);
+            float changeSpeed = 8f;
+            if (controller.Tuning != null) changeSpeed = controller.Tuning.laneChangeSpeed;
+            pos.x = Mathf.MoveTowards(pos.x, targetX, changeSpeed * dt);
+            transform.position = pos;
+        }
+
+        public void OnTriggerStay(Collider other)
+        {
+            if (other == null) return;
+            if (controller == null) return;
+            if (other.GetComponent<ObstacleMarker>() != null)
+            {
+                controller.EndRun();
+            }
+        }
     }
 }

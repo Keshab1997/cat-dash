@@ -11,10 +11,39 @@ namespace CatDash.Gameplay
         [SerializeField] private float lookAheadDistance = 4f;
         [SerializeField] private float lookHeight = 0.6f;
 
-        public Transform Target { get { throw new NotImplementedException("Batch 1: implement per brief."); } }
-        public void SetTarget(Transform target) { throw new NotImplementedException("Batch 1: implement per brief."); }
+        private Transform target;
+
+        public Transform Target { get { return target; } }
+
+        public void SetTarget(Transform target)
+        {
+            this.target = target;
+        }
+
         /// <summary>Pure helper: desired world position for a given target position (testable without frames).</summary>
-        public Vector3 ComputeDesiredPosition(Vector3 targetPosition) { throw new NotImplementedException("Batch 1: implement per brief."); }
-        public Quaternion ComputeDesiredRotation(Vector3 targetPosition) { throw new NotImplementedException("Batch 1: implement per brief."); }
+        public Vector3 ComputeDesiredPosition(Vector3 targetPosition)
+        {
+            return targetPosition + offset;
+        }
+
+        public Quaternion ComputeDesiredRotation(Vector3 targetPosition)
+        {
+            Vector3 desiredPos = ComputeDesiredPosition(targetPosition);
+            Vector3 lookPoint = targetPosition + Vector3.forward * lookAheadDistance + Vector3.up * lookHeight;
+            Vector3 dir = lookPoint - desiredPos;
+            if (dir.sqrMagnitude < 0.0001f) return transform != null ? transform.rotation : Quaternion.identity;
+            return Quaternion.LookRotation(dir.normalized, Vector3.up);
+        }
+
+        private void LateUpdate()
+        {
+            if (target == null) return;
+            float dt = Time.deltaTime;
+            float t = Mathf.Clamp01(smoothing * dt);
+            Vector3 desiredPos = ComputeDesiredPosition(target.position);
+            transform.position = Vector3.Lerp(transform.position, desiredPos, t);
+            Quaternion desiredRot = ComputeDesiredRotation(target.position);
+            transform.rotation = Quaternion.Slerp(transform.rotation, desiredRot, t);
+        }
     }
 }
