@@ -119,7 +119,12 @@ to `game-ci` CLI v0.1.72, which does not accept that flag; the CLI's yargs is co
 (game-ci/cli `src/cli.ts`, comment at ~line 269 documents that strict mode makes unknown args fatal), so the invocation exits 1
 before launching Unity. Not verified beyond that without the raw log lines above the `game-ci test` command — the job-log API is
 rejected for this app (`401 Server failed to authenticate the request`) and `/actions/runs/.../artifacts` is empty.
-Fix is a workflow/settings change (patch or unpin the action, or stop passing the input) → **Captain will not touch it without owner approval**;
+Correction after checking upstream: the `coverageEnabled` input exists **only** in `game-ci/unity-test-runner@v4.4.0` and at our
+pinned commit `32e5771` — `v4.3.2`, `v4` and `v5.0.0-beta.1` have no such input, and `game-ci/cli` latest release is exactly
+`v0.1.72` (no newer CLI to move to, `cliVersion: 'latest'`). So the flag name can never match the CLI; the only clean fixes are
+(a) retarget the action to `v4.3.2`/`v4` and delete `coverageEnabled: false` from the workflow, or (b) keep v4.4.0 and pin a CLI that
+accepts `--no-coverageEnabled`, which does not exist. Option (a) restores coverage-on behaviour (the risk v4.4.0 was added to avoid).
+Fix is a workflow/settings change → **Captain will not touch it without owner approval**;
 `unity-kit.lock.json` also hashes that workflow, so it needs a re-pin.
 
 ### 2026-10-16 — CD-B1-A6 + A7 reviewed and MERGED (`e158334381f12aba5ce5eeb26fe640be96fe12c9`)
