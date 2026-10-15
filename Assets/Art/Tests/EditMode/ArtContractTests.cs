@@ -27,6 +27,8 @@ namespace CatDash.Art.Tests
         [Test]
         public void CatAtlas_RegionsAreInsideTheTextureAndDisjoint()
         {
+            // (PaletteSpec builds these with named Rect arguments; the names are asserted
+            //  here only for readability — the values come from the single source.)
             var regions = new (string Name, Rect Rect)[]
             {
                 ("Body", PaletteSpec.CatAtlas.Body),
@@ -41,12 +43,14 @@ namespace CatDash.Art.Tests
 
             foreach (var (name, rect) in regions)
             {
-                Assert.Greater(rect.width, 0f, $"{name} width");
-                Assert.Greater(rect.height, 0f, $"{name} height");
-                Assert.GreaterOrEqual(rect.xMin, 0f, $"{name} left edge");
-                Assert.GreaterOrEqual(rect.yMin, 0f, $"{name} bottom edge");
-                Assert.LessOrEqual(rect.xMax, 1f, $"{name} right edge");
-                Assert.LessOrEqual(rect.yMax, 1f, $"{name} top edge");
+                // IsTrue with explicit operators, so the test does not depend on which
+                // float overloads this NUnit version happens to expose.
+                Assert.IsTrue(rect.width > 0f, $"{name} width must be positive");
+                Assert.IsTrue(rect.height > 0f, $"{name} height must be positive");
+                Assert.IsTrue(rect.xMin >= 0f, $"{name} left edge outside the texture");
+                Assert.IsTrue(rect.yMin >= 0f, $"{name} bottom edge outside the texture");
+                Assert.IsTrue(rect.xMax <= 1f, $"{name} right edge outside the texture");
+                Assert.IsTrue(rect.yMax <= 1f, $"{name} top edge outside the texture");
             }
 
             for (int i = 0; i < regions.Length; i++)
@@ -95,7 +99,7 @@ namespace CatDash.Art.Tests
             foreach (var pose in RunCycleSpec.PoseOrder)
             {
                 float phase = RunCycleSpec.PhaseOf(pose);
-                Assert.Greater(phase, previous, "pose phases must increase in sheet order");
+                Assert.IsTrue(phase > previous, "pose phases must increase in sheet order");
                 previous = phase;
             }
         }
@@ -112,10 +116,20 @@ namespace CatDash.Art.Tests
             {
                 var hex = (string)field.GetValue(null);
                 var parsed = PaletteSpec.FromSrgb(hex);
-                Assert.AreNotEqual(Color.magenta, parsed,
-                    $"{field.Name} ('{hex}') is not a valid #RRGGBB colour");
-                Assert.IsTrue(parsed.maxColorComponent <= 1f && parsed.minColorComponent >= 0f,
-                    $"{field.Name} parsed outside the 0..1 range");
+                // Compare channels directly: UnityEngine.Color exposes maxColorComponent but
+                // NOT minColorComponent (the assertion here used to be error CS1061), and
+                // Assert.AreNotEqual(Color, Color) is an ambiguous NUnit overload.
+                bool parsedToRealColour = !(parsed.r == Color.magenta.r
+                                            && parsed.g == Color.magenta.g
+                                            && parsed.b == Color.magenta.b);
+                Assert.IsTrue(parsedToRealColour,
+                    $"PaletteSpec.{field.Name} ('{hex}') did not parse into a real colour");
+                // Same purpose as before: every channel must stay inside 0..1.
+                Assert.IsTrue(parsed.r >= 0f && parsed.r <= 1f
+                              && parsed.g >= 0f && parsed.g <= 1f
+                              && parsed.b >= 0f && parsed.b <= 1f
+                              && parsed.a >= 0f && parsed.a <= 1f,
+                    $"PaletteSpec.{field.Name} ('{hex}') parsed outside the 0..1 range");
             }
         }
 
@@ -179,7 +193,13 @@ namespace CatDash.Art.Tests
                     .ToArray();
                 Assert.IsNotEmpty(meshes, $"{path} imported with no meshes");
                 int triangles = meshes.Sum(mesh => mesh.triangles.Length / 3);
-                Assert.LessOrEqual(triangles, budget,
+                // A mesh imported without Read/Write enabled returns an EMPTY triangles
+                // array rather than throwing, which would let this budget check pass at
+                // zero triangles. Assert the count is real before comparing it.
+                Assert.IsTrue(triangles > 0,
+                    $"{path} reported 0 triangles — the import is unreadable or broken, "
+                    + "so this budget check cannot be trusted (see the .fbx.meta isReadable)");
+                Assert.IsTrue(triangles <= budget,
                     $"{path} has {triangles} triangles, over the {budget} budget");
             }
         }
@@ -236,7 +256,7 @@ namespace CatDash.Art.Tests
                 Assert.IsNotNull(texture, $"{path} missing");
                 Assert.AreEqual(size, texture.width, $"{path} width");
                 Assert.AreEqual(size, texture.height, $"{path} height");
-                Assert.LessOrEqual(size, 1024, $"{path} exceeds the 1024 cap");
+                Assert.IsTrue(size <= 1024, $"{path} exceeds the 1024 cap");
             }
         }
 

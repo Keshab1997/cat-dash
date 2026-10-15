@@ -20,7 +20,7 @@ texture map, or a source of geometry — the sheets are compared against, never 
 
 | Path | Reference | Creator/source | License/permission | Generated how | Budget/cleanup | Verified in Unity |
 |---|---|---|---|---|---|---|
-| Assets/Art/Generated/Cat.fbx | docs/art/refs/cat-v2-stylized-3d-render.png (look), docs/art/refs/cat-v2-run-cycle-sheet.png (poses) | Original procedural, Agent B (`tool/blender_cat.py`) | Own work, repo license | Blender 4.5.14 LTS; explicit verts/faces/UVs; 13 islands on joint pivots | 1846 tris (cap 4000), 1 material, 1024² atlas, 0.24 × 0.75 × 0.67 m | Import/budget/material asserted by `CatDash.Art.Tests.EditMode`; **owner capture pending** |
+| Assets/Art/Generated/Cat.fbx | docs/art/refs/cat-v2-stylized-3d-render.png (look), docs/art/refs/cat-v2-run-cycle-sheet.png (poses) | Original procedural, Agent B (`tool/blender_cat.py`) | Own work, repo license | Blender 4.5.14 LTS; explicit verts/faces/UVs; 13 islands on joint pivots | 1870 tris (cap 4000), 1 material, 1024² atlas, 0.24 × 0.78 × 0.70 m | Import/budget/material asserted by `CatDash.Art.Tests.EditMode`; **owner capture pending** |
 | Assets/Art/Generated/Prop_Crate.fbx | docs/art/refs/props-road-sheet.png | Original procedural, Agent B (`tool/blender_propset.py --asset crate`) | Own work, repo license | Chamfered octagonal prism + corner posts; teal band on every face | 112 tris (cap 800), 1 material, 512² atlas, 0.80 m cube | Same test assembly; **owner capture pending** |
 | Assets/Art/Generated/Prop_Barrier.fbx | docs/art/refs/props-road-sheet.png | Original procedural, Agent B (`tool/blender_propset.py --asset barrier`) | Own work, repo license | Cream board with orange hazard stripes on a splayed wooden trestle | 72 tris (cap 800), 1 material, 512² atlas, 1.60 × 0.35 × 0.92 m | Same test assembly; **owner capture pending** |
 | Assets/Art/Generated/Prop_Pot.fbx | docs/art/refs/props-road-sheet.png | Original procedural, Agent B (`tool/blender_propset.py --asset pot`) | Own work, repo license | Tapered terracotta planter, soil disc, 5 stems with rounded leaves | 564 tris (cap 800), 1 material, 512² atlas, 0.60 × 0.60 × 0.73 m | Same test assembly; **owner capture pending** |
@@ -62,6 +62,11 @@ now carry (also emitted in each generator's `REPORT_JSON`):
   (`Textures/<Name>.png`), imported with material description import enabled. If a
   material ever loses its texture, `GeneratedModels_UseOneMaterialEachAndCarryATexture`
   fails and the fix is a one-line import setting, not a re-export.
+- **Read/Write Enabled.** The generated FBX metas set `isReadable: 1` on purpose: the
+  EditMode art tests read `mesh.triangles`, and a non-readable mesh returns an EMPTY
+  array instead of throwing, which would let a triangle-budget assertion pass at zero.
+  `GeneratedModels_ImportWithinTriangleBudget` asserts a non-zero count for that reason.
+  These meshes are a few hundred triangles, so the memory cost is nil.
 - **Budget check.** `python3 tool/preflight.py` covers repository hygiene;
   `blender --background --python tool/blender_verify_assets.py` re-imports the FBXs
   and checks tri budgets, single material, UV survival and pivot heights;
@@ -77,6 +82,9 @@ now carry (also emitted in each generator's `REPORT_JSON`):
 - There is no animation yet (skinning is explicitly out of scope this batch). The
   four poses of `cat-v2-run-cycle-sheet.png` are recorded as the contract in
   `Assets/Art/RunCycleSpec.cs` (`RunPose` order contact → down → up → air).
+- The "mouse" blaze on the back is painted at ~55 % of a 384 px tile, so it reads as a
+  small marking rather than a big graphic; it is verified by eye in the Blender previews,
+  not by an automated test.
 - **Visual gate: NOT RUN.** Only an owner-captured Unity screenshot/clip from the
   reviewed candidate SHA can clear it (docs/GAME_BRIEF.md, "Visual acceptance gate").
 
