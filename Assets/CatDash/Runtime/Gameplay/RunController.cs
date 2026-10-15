@@ -16,18 +16,131 @@ namespace CatDash.Gameplay
         public RunTuning Tuning { get { return tuning; } }
         public Transform Player { get { return player; } }
 
-        public RunState State { get { throw new NotImplementedException("Batch 1: implement per brief."); } }
-        public bool IsRunning { get { throw new NotImplementedException("Batch 1: implement per brief."); } }
-        public float DistanceMeters { get { throw new NotImplementedException("Batch 1: implement per brief."); } }
-        public float SpeedMetersPerSecond { get { throw new NotImplementedException("Batch 1: implement per brief."); } }
+        private RunState state = RunState.Ready;
+        private float distanceMeters = 0f;
+        private float speedMetersPerSecond = 0f;
+        private bool speedInitialized = false;
+        private readonly List<IRunObserver> observers = new List<IRunObserver>();
+        private bool paused = false;
 
-        public void BeginRun() { throw new NotImplementedException("Batch 1: implement per brief."); }
-        public void Restart() { throw new NotImplementedException("Batch 1: implement per brief."); }
+        public RunState State { get { return state; } }
+        public bool IsRunning { get { return state == RunState.Running; } }
+        public float DistanceMeters { get { return distanceMeters; } }
+        public float SpeedMetersPerSecond
+        {
+            get
+            {
+                if (!speedInitialized)
+                {
+                    if (tuning == null) tuning = new RunTuning();
+                    speedMetersPerSecond = tuning.startSpeed;
+                    speedInitialized = true;
+                }
+                return speedMetersPerSecond;
+            }
+        }
+
+        private void Awake()
+        {
+            if (tuning == null) tuning = new RunTuning();
+            speedMetersPerSecond = tuning.startSpeed;
+            speedInitialized = true;
+        }
+
+        private void OnEnable() { Active = this; }
+        private void OnDisable() { if (Active == this) Active = null; }
+
+        public void BeginRun()
+        {
+            if (state != RunState.Ready) return;
+            if (tuning == null) tuning = new RunTuning();
+            state = RunState.Running;
+            paused = false;
+            speedMetersPerSecond = tuning.startSpeed;
+            speedInitialized = true;
+            NotifyStateChanged();
+        }
+
+        public void Restart()
+        {
+            if (tuning == null) tuning = new RunTuning();
+            distanceMeters = 0f;
+            speedMetersPerSecond = tuning.startSpeed;
+            speedInitialized = true;
+            state = RunState.Running;
+            paused = false;
+            NotifyStateChanged();
+            NotifyDistanceChanged();
+        }
+
         /// <summary>Idempotent: only the first call while Running ends the run.</summary>
-        public void EndRun() { throw new NotImplementedException("Batch 1: implement per brief."); }
-        public void RegisterObserver(IRunObserver observer) { throw new NotImplementedException("Batch 1: implement per brief."); }
-        public void UnregisterObserver(IRunObserver observer) { throw new NotImplementedException("Batch 1: implement per brief."); }
+        public void EndRun()
+        {
+            if (state != RunState.Running) return;
+            state = RunState.GameOver;
+            paused = false;
+            foreach (var o in observers.ToArray())
+            {
+                try { o.OnRunEnded(distanceMeters); } catch { }
+            }
+            NotifyStateChanged();
+        }
+
+        public void RegisterObserver(IRunObserver observer)
+        {
+            if (observer == null) return;
+            if (!observers.Contains(observer)) observers.Add(observer);
+        }
+
+        public void UnregisterObserver(IRunObserver observer)
+        {
+            observers.Remove(observer);
+        }
+
         /// <summary>Test hook: clears the static Active reference between PlayMode tests.</summary>
-        public static void ResetStatics() { throw new NotImplementedException("Batch 1: implement per brief."); }
+        public static void ResetStatics() { Active = null; }
+
+        /// <summary>Test hook: advances the simulation by deltaTime.</summary>
+        public void Tick(float deltaTime)
+        {
+            if (!IsRunning) return;
+            if (paused) return;
+            if (tuning == null) tuning = new RunTuning();
+            speedMetersPerSecond = Mathf.Min(tuning.maxSpeed, speedMetersPerSecond + tuning.speedGainPerSecond * deltaTime);
+            speedInitialized = true;
+            distanceMeters += speedMetersPerSecond * deltaTime;
+            NotifyDistanceChanged();
+        }
+
+        private void Update()
+        {
+            Tick(Time.deltaTime);
+        }
+
+        public void OnApplicationPause(bool pauseStatus)
+        {
+            paused = pauseStatus;
+        }
+
+        public void OnApplicationFocus(bool hasFocus)
+        {
+            paused = !hasFocus;
+        }
+
+        private void NotifyStateChanged()
+        {
+            foreach (var o in observers.ToArray())
+            {
+                try { o.OnRunStateChanged(state); } catch { }
+            }
+        }
+
+        private void NotifyDistanceChanged()
+        {
+            foreach (var o in observers.ToArray())
+            {
+                try { o.OnDistanceChanged(distanceMeters); } catch { }
+            }
+        }
     }
 }
