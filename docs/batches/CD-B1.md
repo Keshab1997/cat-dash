@@ -106,6 +106,18 @@ a frozen member. Implementations live in the owning agent's files.
 
 ## Known risks carried into the batch
 
+### Held at review: CD-B1-A3 (branch `work/agent-a/cd-b1-hit-camera`, tip `c56cf2686c4d35167e8b25ad51b66d3b1979dd35`)
+
+Not merged to `main`. Evidence (static review only; Unity not run):
+
+1. `PlayerMover.OnTriggerStay` became `private` in A3, but the merged A2 test still calls it
+   from another assembly: `Assets/CatDash/Tests/EditMode/PlayerMoverTests.cs:71` and `:82`
+   (`mover.OnTriggerStay(col);`) — CS0122, the `CatDash.Tests.EditMode` assembly would not compile.
+2. `Assets/CatDash/Runtime/Gameplay/RearFollowCamera.cs:42` uses `float.IsFinite` — not part of the
+   guaranteed `System.Single` surface; `float.IsNaN`/`float.IsInfinity` is the portable form.
+3. Skipped from the block (acceptable): `RunInput.Update()` gate on `TryRegister`
+   (performance only) and its test additions.
+
 1. This is the first real Unity run of the kit itself (kit `VALIDATION.md`: no Editor,
    no compilation, no tests ever executed). First `full` run may surface compile or
    asmdef-discovery issues; the failing log is read before any fix.
