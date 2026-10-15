@@ -17,6 +17,7 @@ namespace CatDash.Tests.EditMode
         [SetUp]
         public void SetUp()
         {
+            RunController.ResetStatics();
             root = new GameObject("Test HUD");
             hud = root.AddComponent<CatDashHud>();
         }

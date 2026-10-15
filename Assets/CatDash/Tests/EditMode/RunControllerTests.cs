@@ -92,4 +92,15 @@ public class RunControllerTests
         public void OnDistanceChanged(float meters) { }
         public void OnRunEnded(float finalMeters) { if (OnEnded != null) OnEnded(); }
     }
+
+    [Test]
+    public void Active_ClearedOnDestroy_WithoutResetStatics()
+    {
+        RunController.ResetStatics();
+        var go2 = new GameObject("ActiveClear");
+        var rc2 = go2.AddComponent<RunController>();
+        Assert.AreEqual(rc2, RunController.Active);
+        UnityEngine.Object.DestroyImmediate(go2);
+        Assert.IsNull(RunController.Active);
+    }
 }
