@@ -135,12 +135,21 @@ namespace CatDash.Tests.EditMode
         {
             spawner.OnRunStateChanged(RunState.Running);
             Assert.Greater(spawner.SpawnedRows, 0, "Starting a run did not prefill the window ahead.");
-
-            spawner.OnDistanceChanged(200f);
-
-            Assert.Greater(spawner.ActiveObstacleCount, 0, "No obstacle was actually placed over 200 m.");
             Assert.LessOrEqual(spawner.ActiveObstacleCount, spawner.MaxPooledInstances);
-            Assert.LessOrEqual(spawner.ActiveObstacleCount, 2, "poolSizePerPrefab = 2 must cap live instances.");
+
+            // Sweep instead of asserting on one step: whether any given row blocks a lane is seed data, so a
+            // single step could legitimately place nothing. Across 320 m the pool must place something.
+            int maxActive = 0;
+            for (float metres = 0f; metres <= 320f; metres += 8f)
+            {
+                spawner.OnDistanceChanged(metres);
+                maxActive = Mathf.Max(maxActive, spawner.ActiveObstacleCount);
+
+                Assert.LessOrEqual(spawner.ActiveObstacleCount, spawner.MaxPooledInstances);
+                Assert.LessOrEqual(spawner.ActiveObstacleCount, 2, "poolSizePerPrefab = 2 must cap live instances.");
+            }
+
+            Assert.Greater(maxActive, 0, "No obstacle was ever live across 320 m: the pool never placed anything.");
         }
 
         [Test]
@@ -162,25 +171,79 @@ namespace CatDash.Tests.EditMode
         [Test]
         public void Obstacles_Behind_The_Player_Are_Recycled()
         {
+            // Contract, not hierarchy. The old version walked the "Obstacle Pool" children and treated every
+            // active one as proof of a leak — but TrySpawn parents ALL live instances under that same holder
+            // (ObstacleSpawner.cs, TrySpawn -> PoolParent), so an active child there says nothing about
+            // recycling. It reported an instance live at z = 64 with the despawn limit at 385, which is a real
+            // leak the hierarchy walk cannot distinguish from a normal live instance. Drive the distance in
+            // rowSpacing (8 m) steps, like the 2 km pool test, and assert through the spawner's own accounting.
+            spawner.Configure(new[] { prefab }, 4);
             spawner.OnRunStateChanged(RunState.Running);
-            spawner.OnDistanceChanged(400f);
 
-            float playerZ = 400f;
-            float limit = playerZ - 15f; // despawnBehindDistance default
-            int activeFound = 0;
-            foreach (Transform child in spawner.transform)
+            int steps = 0;
+            int maxActive = 0;
+            for (float metres = 0f; metres <= 2000f; metres += 8f)
             {
-                if (child.name != "Obstacle Pool") continue;
-                foreach (Transform instance in child)
-                {
-                    if (!instance.gameObject.activeSelf) continue;
-                    activeFound++;
-                    Assert.GreaterOrEqual(instance.position.z, limit,
-                                          "Obstacle at z = " + instance.position.z + " was not recycled behind the player.");
-                }
+                spawner.OnDistanceChanged(metres);
+
+                Assert.AreEqual(0, spawner.CountActiveBehind(metres),
+                                "Step " + steps + " (" + metres + " m): live obstacle(s) behind the despawn line.");
+                Assert.LessOrEqual(spawner.ActiveObstacleCount, spawner.MaxPooledInstances,
+                                   "Step " + steps + " (" + metres + " m): live obstacles exceeded the pool.");
+
+                maxActive = Mathf.Max(maxActive, spawner.ActiveObstacleCount);
+                steps++;
             }
 
-            Assert.Greater(activeFound, 0, "No live obstacle was found under the pool object.");
+            Assert.Greater(steps, 200, "The sweep did not run enough steps to be meaningful.");
+            Assert.Greater(spawner.SpawnedRows, 0, "The sweep spawned no rows at all.");
+            Assert.Greater(maxActive, 0, "No obstacle was ever live across 2 km: the sweep proved nothing.");
+        }
+
+        [Test]
+        public void Active_Obstacles_Never_Sit_Behind_The_Player()
+        {
+            // The invariants this test exists for: after any OnDistanceChanged step — stepped or jumped —
+            // there is no live obstacle behind the despawn line, and the live count never exceeds the pool.
+
+            // Phase A: stepped run, 8 m steps, 0 -> 2000 m (the steady-state case).
+            spawner.Configure(new[] { prefab }, 4);
+            spawner.OnRunStateChanged(RunState.Running);
+            for (float metres = 0f; metres <= 2000f; metres += 8f)
+            {
+                spawner.OnDistanceChanged(metres);
+                Assert.AreEqual(0, spawner.CountActiveBehind(metres),
+                                "Stepped run: live obstacle(s) behind the despawn line at " + metres + " m.");
+            }
+
+            // Phase B: a single 400 m jump through a fresh start. This is the case the pre-fix code failed:
+            // instances stayed live at z = 64 while the despawn limit was 385 (CD-B1 second CI run).
+            spawner.Configure(new[] { prefab }, 2);
+            spawner.ResetAndReseed(20261016);
+            spawner.OnRunStateChanged(RunState.Running);
+            int rowsBeforeJump = spawner.SpawnedRows;
+
+            spawner.OnDistanceChanged(400f);
+
+            Assert.AreEqual(0, spawner.CountActiveBehind(400f),
+                            "Jump: live obstacle(s) stayed behind the despawn line after OnDistanceChanged(400f).");
+            Assert.LessOrEqual(spawner.ActiveObstacleCount, spawner.MaxPooledInstances,
+                               "Jump: live obstacles exceeded the pool.");
+            Assert.Greater(spawner.SpawnedRows, rowsBeforeJump,
+                           "Jump: no row was planned ahead of the player — the planner stalled behind them.");
+
+            // The pool must serve the live window after a jump, not stay spent behind the player.
+            int maxActiveAfterJump = 0;
+            for (float metres = 400f; metres <= 500f; metres += 8f)
+            {
+                spawner.OnDistanceChanged(metres);
+                maxActiveAfterJump = Mathf.Max(maxActiveAfterJump, spawner.ActiveObstacleCount);
+                Assert.AreEqual(0, spawner.CountActiveBehind(metres),
+                                "Post-jump run: live obstacle(s) behind the despawn line at " + metres + " m.");
+            }
+
+            Assert.Greater(maxActiveAfterJump, 0,
+                           "No obstacle ever went live after the jump: the pool stayed spent on skipped rows.");
         }
 
         [Test]
