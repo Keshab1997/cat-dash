@@ -1,8 +1,10 @@
 # CD-B1 — Cat Dash first playable slice (batch record)
 
 - **Batch:** CD-B1 (implement → integrate → QA)
-- **Baseline SHA:** `856aa9b2d8f66f0b7b6f4845d21048c18a72515b`
-  ("chore(batch1): freeze Cat Dash skeleton, UGUI package and shared API contract")
+- **Worker baseline SHA (start here):** `89db4db8d457d5293b8752bd2fff9bcb11df30c8`
+- **Skeleton commit inside that baseline:** `856aa9b2d8f66f0b7b6f4845d21048c18a72515b`
+  ("chore(batch1): freeze Cat Dash skeleton, UGUI package and shared API contract") —
+  the frozen contract/API surface lives in these files, not in prose.
 - **Prepared by:** Head / integrator, 2026-10-16.
 
 ## Why this baseline exists
