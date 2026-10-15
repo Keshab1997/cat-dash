@@ -79,11 +79,11 @@ namespace CatDash.Gameplay
             if (state != RunState.Running) return;
             state = RunState.GameOver;
             paused = false;
+            NotifyStateChanged();
             foreach (var o in observers.ToArray())
             {
                 try { o.OnRunEnded(distanceMeters); } catch { }
             }
-            NotifyStateChanged();
         }
 
         public void RegisterObserver(IRunObserver observer)
