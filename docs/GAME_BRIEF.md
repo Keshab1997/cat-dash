@@ -10,6 +10,11 @@
 - No ads now; optional AdMob later. Manual CI only, no surprise paid services.
 
 ## Proposed defaults — Head should confirm only material open decisions
+
+> **Confirmed by the owner 2026-10-16 (batch CD-B1).** Portrait three-lane runner, swipe
+> left/right, auto-run with a rear follow camera, distance score, start/game-over/restart.
+> No jump/slide, ads, multiplayer, shop or monetisation in this slice. Live plan, ownership
+> and frozen API surface: `docs/batches/CD-B1.md`.
 - Portrait, three-lane runner; swipe left/right to change lanes.
 - Auto-forward movement; rear follow camera; no jump/slide required in first slice.
 - Cozy stylized low-poly street, original orange tabby cat, cream/teal/orange palette.
