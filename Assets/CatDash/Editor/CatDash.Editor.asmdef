@@ -3,7 +3,8 @@
   "rootNamespace": "",
   "references": [
     "CatDash.Gameplay",
-    "CatDash.Presentation"
+    "CatDash.Presentation",
+    "UnityEngine.UI"
   ],
   "includePlatforms": [
     "Editor"
