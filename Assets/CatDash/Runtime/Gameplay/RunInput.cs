@@ -17,6 +17,7 @@ namespace CatDash.Gameplay
         private RunController registeredController;
 
         public bool InputEnabled { get { return inputEnabled; } }
+        public bool IsRegistered { get { return registeredController != null; } }
 
         public void EnableInput() { inputEnabled = true; }
         public void DisableInput() { inputEnabled = false; tracking = false; }
@@ -39,6 +40,11 @@ namespace CatDash.Gameplay
         public void OnRunEnded(float finalMeters)
         {
             DisableInput();
+        }
+
+        private void Awake()
+        {
+            TryRegister();
         }
 
         private void OnEnable()
@@ -125,7 +131,7 @@ namespace CatDash.Gameplay
         public void OnApplicationPause(bool pauseStatus)
         {
             if (pauseStatus) DisableInput();
-            else if (registeredController != null && registeredController.IsRunning) EnableInput();
+            else if ((registeredController != null && registeredController.IsRunning) || (registeredController == null && RunController.Active != null && RunController.Active.IsRunning)) EnableInput();
         }
 
         /// <summary>Public seam; see OnApplicationPause.</summary>

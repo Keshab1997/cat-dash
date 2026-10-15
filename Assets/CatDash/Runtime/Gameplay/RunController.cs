@@ -45,10 +45,12 @@ namespace CatDash.Gameplay
             if (tuning == null) tuning = new RunTuning();
             speedMetersPerSecond = tuning.startSpeed;
             speedInitialized = true;
+            Active = this;
         }
 
         private void OnEnable() { Active = this; }
         private void OnDisable() { if (Active == this) Active = null; }
+        private void OnDestroy() { if (Active == this) Active = null; }
 
         public void BeginRun()
         {
