@@ -113,7 +113,10 @@ no shared batch doc), `python3 tool/preflight.py` = 0 errors on the branch tip, 
 new assemblies `CatDash.Art` / `CatDash.Art.Tests.EditMode` are self-contained (Art asmdef `references: []`, tests reference only Art +
 TestRunner). Meshes/textures committed: `Cat.fbx`, `Prop_{Crate,Barrier,Pot}.fbx`, `Road_Segment.fbx`, five PNGs (1024²/512²) with `.meta`.
 Held because the owner rejected the cat look; redo requested on the same branch against new reference sheets
-(`cat-run-pose-sheet.png`, `props-road-sheet.png`, `cat-v2-stylized-3d-render.png`, `cat-v2-run-cycle-sheet.png`).
+committed on `main` so every checkout can read them:
+  `docs/art/refs/cat-v2-stylized-3d-render.png` (hero cat look), `docs/art/refs/cat-v2-run-cycle-sheet.png` (4-pose run cycle),
+  `docs/art/refs/props-road-sheet.png` (props + road). The earlier `cat-run-pose-sheet.png` is superseded and intentionally NOT
+  committed (look rejected). Reference images are pipeline input only — never gameplay evidence for the visual gate.)
 Unity import/scale/material verification and the whole visual gate remain **NOT RUN** — only owner-captured Unity footage can clear it.
 
 ### 2026-10-16 — CD-B1-A5 reviewed, merged with one Captain line-level correction
