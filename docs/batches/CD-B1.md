@@ -106,6 +106,17 @@ a frozen member. Implementations live in the owning agent's files.
 
 ## Known risks carried into the batch
 
+### 2026-10-16 — CD-B1-A5 reviewed, merged with one Captain line-level correction
+Branch `work/agent-a/cd-b1-resume-isolation`, tip `ad5f9046e45c1eac119a8fe6dbc8f1853b5401ac`, cut from `ae8465f` (main tip —
+correct baseline). Resume fix is right on both `OnApplicationPause` and `OnApplicationFocus`; `RunController.paused` is already
+cleared on resume (verified in the merged RunController). **Blocker found in review and fixed by Captain, not silently:**
+A5 called the still-`private` `RunInput.OnApplicationPause/OnApplicationFocus` from `RunInputTests` (9 call sites) → CS0122 in
+`CatDash.Tests.EditMode`. Both handlers are now `public`, matching `RunController`'s already-public handlers; commit
+`fix(batch1-captain): make RunInput pause/focus seams public to unblock test compile`. A6 asked to rename the misleading test
+`Active_ClearedOnDestroy_WithoutResetStatics` (it does call `ResetStatics()` first) and to drop the per-frame `TryRegister()` retry.
+Baseline note: the SHA printed in A5's brief tail was mistyped by Captain; A worked from `origin/main` as instructed, so no harm.
+`git rev-parse origin/main` is the authoritative baseline at every dispatch.
+
 ### 2026-10-16 — CD-B1-A4 and CD-B1-C1 reviewed and merged serially
 - A4 `work/agent-a/cd-b1-playmode-integration` tip `79d4830e8047f24e284af8ce52ed5bd73f823da3` → `3bcd3c1f` (2 PlayMode test
   files + .meta; only new files, no Runtime change — Rigidbody(isKinematic) present, so trigger callbacks are real).
