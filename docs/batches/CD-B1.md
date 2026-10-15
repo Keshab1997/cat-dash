@@ -106,6 +106,19 @@ a frozen member. Implementations live in the owning agent's files.
 
 ## Known risks carried into the batch
 
+### 2026-10-16 — CD-B1-A6 (polish) reviewed, **held: one deterministic test bug**
+Branch `work/agent-a/cd-b1-polish`, tip `71056af3596b50c99827a6eefd5f49d7db01171c`, cut from `4cec55e` (correct baseline),
+one commit, paths exactly the three assigned files, `git merge-tree` vs `main` = no conflicts, preflight = 0 errors.
+Done well: `Update()` early-out `if (registeredController == null || registeredController != RunController.Active) TryRegister();`
+and the misleading test renamed to `OnDisable_ClearsActive_WhenControllerDestroyed`.
+**Why held:** `RunController.paused` is only set by `RunController.OnApplicationPause/OnApplicationFocus` (RunController.cs:120-127),
+but `FocusPauseInterleaving_WhenRunning_ResumesInputAndFreezesDistance` calls only `input.OnApplicationPause(true)` and then
+`rc.Tick(0.5f)` — `rc.paused` stays false, distance advances, and `Assert.AreEqual(before, rc.DistanceMeters, 0.001f)` fails
+deterministically (SetUp registers only the observer; the test never calls `rc.OnApplicationPause`). The sibling `AfterGameOver`
+test does pass because it never asserts distance. Fix is two added lines; A owns the file, so it goes back rather than being
+silently patched. Unity execution still NOT RUN — this was found by reading, and CI would have been the first place it surfaced.
+**Agent C is parked by owner decision** — `work/agent-c/cd-b1-pattern-hud-scene` (`db905c0`) is already merged; no further C blocks.
+
 ### 2026-10-16 — CD-B1-B1 reviewed, **held at review (not merged)**
 Branch `work/agent-b/cd-b1-cat-props`, tip `f6675d7d6127eb1d9026d45279935d4cef116b85`, cut from the older baseline `e6904bb`.
 Verified clean on structure: one commit, paths only inside `Assets/Art/**`, `tool/blender_*.py`, `docs/ASSETS.md` (no scene, no gameplay,
