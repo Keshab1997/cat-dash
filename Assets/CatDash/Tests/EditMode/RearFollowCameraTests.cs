@@ -59,4 +59,18 @@ public class RearFollowCameraTests
         Vector3 pos = cam.ComputeDesiredPosition(target);
         Assert.AreEqual(target.y + 2.2f, pos.y, 0.001f);
     }
+    [Test]
+    public void ComputeDesiredRotation_Degenerate_ReturnsIdentity()
+    {
+        var f = typeof(RearFollowCamera).GetField("offset", BindingFlags.NonPublic | BindingFlags.Instance);
+        f.SetValue(cam, new Vector3(0f, 0.5f, 4f));
+        var lookHeightF = typeof(RearFollowCamera).GetField("lookHeight", BindingFlags.NonPublic | BindingFlags.Instance);
+        lookHeightF.SetValue(cam, 2.2f);
+        var lookAheadF = typeof(RearFollowCamera).GetField("lookAheadDistance", BindingFlags.NonPublic | BindingFlags.Instance);
+        lookAheadF.SetValue(cam, 4f);
+        Vector3 target = new Vector3(1f, 2f, 3f);
+        Quaternion q = cam.ComputeDesiredRotation(target);
+        Assert.AreEqual(Quaternion.identity, q);
+    }
+
 }

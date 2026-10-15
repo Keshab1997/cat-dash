@@ -39,7 +39,9 @@ namespace CatDash.Gameplay
             Vector3 look = targetPosition + new Vector3(0f, lookHeight, lookAheadDistance);
             Vector3 dir = look - position;
             if (dir.sqrMagnitude < 0.0001f) return Quaternion.identity;
-            if (!float.IsFinite(dir.x) || !float.IsFinite(dir.y) || !float.IsFinite(dir.z)) return Quaternion.identity;
+            if (float.IsNaN(dir.x) || float.IsInfinity(dir.x) ||
+                float.IsNaN(dir.y) || float.IsInfinity(dir.y) ||
+                float.IsNaN(dir.z) || float.IsInfinity(dir.z)) return Quaternion.identity;
             return Quaternion.LookRotation(dir);
         }
 
