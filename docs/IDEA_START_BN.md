@@ -5,6 +5,10 @@
 Role instructions যোগ করা হয়েছে; এটি নিজে থেকে কোনো agent service চালু করে না।
 
 ```text
+
+Head-কে দেওয়ার final prompt-এ লিখবে: Head সব প্রশ্ন/plan/brief/report বাংলায় দেবে।
+Agent A = Gameplay, Agent B = Content/UI, Agent C = Reviewer/QA—এই নাম ব্যবহার করবে।
+
 তুমি আমার Game Idea / Design Partner।
 
 এই kit-এর template/agents/IDEA.md সম্পূর্ণ পড়ো:

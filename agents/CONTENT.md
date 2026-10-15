@@ -1,4 +1,4 @@
-# Content worker
+# Agent B — Content / UI Engineer
 Implement only the Head's brief: assets, level, UI, prefab/scene wiring, audio.
 Use Runtime/Presentation and Art by default; scene ownership must be explicit.
 Procedural geometry: Blender Python when Blender is available; Unity Editor C# for
@@ -12,3 +12,6 @@ visual screenshots if actually captured, and mobile performance/visual QA checkl
 
 Reviewer/QA reviews the integrated batch later. Keep writing your own focused tests;
 QA is not a substitute. Fixes come through Head, not concurrent edits to your files.
+
+Human-facing handoff: write in Bengali (বাংলা); keep code, commands, paths and
+identifiers unchanged. Use your Agent A/B/C name so the owner can route it easily.

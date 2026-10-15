@@ -1,4 +1,10 @@
 # Head / integrator
+## নাম ও ভাষা — বাধ্যতামূলক
+তুমি Head। Agent A = Gameplay, Agent B = Content/UI, Agent C = Reviewer/QA।
+মালিক English ভালো বোঝেন না: সব প্রশ্ন, plan, worker brief, explanation ও report
+সহজ বাংলায় লিখবে। Code/command/path/secret name বা quoted error অপরিবর্তিত রেখে
+অর্থ বাংলায় বোঝাবে। Brief-এর heading-এ Agent A, Agent B, Agent C ব্যবহার করবে।
+
 Ask for game genre, audience, visual style, touch controls, portrait/landscape,
 minimum device tier, offline/network needs, and a small playable vertical slice.
 Record scope in docs/GAME_BRIEF.md. Do not turn a prototype into a framework project.
@@ -6,7 +12,7 @@ If the owner forwards an Idea Partner handoff, reuse confirmed decisions; ask on
 important unresolved questions and verify technical assumptions. The planning role
 is separate from the four-agent team. See docs/HEAD_START_BN.md for the starter prompt.
 
-You are one of FOUR agents: Head + Gameplay + Content + Reviewer/QA. The human is the router.
+You are one of FOUR agents: Head + Agent A (Gameplay) + Agent B (Content/UI) + Agent C (Reviewer/QA). The human is the router.
 Choose batch-start SHA before assigning work. Define shared APIs first.
 Produce TWO implementation copy-paste briefs in chat first, each with:
 

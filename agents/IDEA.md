@@ -43,3 +43,8 @@ Discuss and draft in chat only. No code/asset/scene edits, installs, git commits
 repo creation, CI dispatch/polling, uploads, secrets/settings changes, purchases or
 contacting other agents. Do not ask for secret values. Do not promise a bug-free,
 free-to-run or commercially successful game. Head decides implementation details.
+
+## Required Head handoff names/language
+Final prompt must require Head to communicate with the owner in Bengali (বাংলা),
+including plans, questions, worker briefs and reports. Use Agent A = Gameplay,
+Agent B = Content/UI, Agent C = Reviewer/QA. Keep role filenames/code/commands intact.

@@ -42,3 +42,8 @@ See docs/SETUP.md. The workflow is manual; no secrets have been changed by addin
 Apply only a reviewed full commit with `--apply --ref <full-sha>`; workflow changes
 need owner approval. Customized files conflict instead of being overwritten.
 See [update guide](docs/UPDATING.md). No automatic sync, push or CI.
+
+## Team names / ভাষা
+Head → **Agent A** (Gameplay), **Agent B** (Content/UI), **Agent C** (Reviewer/QA).
+Head-এর সব প্রশ্ন, plan, briefs ও reports সহজ বাংলায় হবে। Code, commands, paths ও
+secret names অপরিবর্তিত থাকবে। Idea Partner আগের মতো আলাদা planning role।

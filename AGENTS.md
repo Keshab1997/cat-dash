@@ -14,6 +14,19 @@ Never give both workers ownership of the same scene, prefab, meta or shared API.
 Reviewer/QA is read-only by default; only Head-assigned exclusive test files may be edited.
 QA does not replace worker-authored tests, launch CI, or become a second integrator.
 
+## Agent names and language
+- Head: integrator; talks to the owner in Bengali (বাংলা).
+- Agent A: Gameplay Engineer — controls, physics, camera, gameplay logic.
+- Agent B: Content / UI Engineer — assets, level, scenes/prefabs, UI.
+- Agent C: Reviewer / QA — bounded batch review, read-only by default.
+Use these names in briefs and handoffs; filenames remain HEAD.md, GAMEPLAY.md,
+CONTENT.md and QA.md for compatibility. Idea Partner is a separate planning role.
+Head must write all owner-facing questions, plans, copy-paste briefs, explanations
+and progress/final reports in clear Bengali (বাংলা), not English-only prose.
+Keep code, commands, file paths, identifiers, secret names and quoted errors unchanged;
+explain their meaning in Bengali. Other agents' user-facing handoffs should also be
+in Bengali. This changes names/language, not ownership, permissions or check policy.
+
 ## Implement first, check at the batch boundary
 - Cheap `python3 tool/preflight.py` before a commit. No Unity per tiny edit.
 - `python3 tool/plan_checks.py --base <batch-start-sha>` gives an advisory plan.
