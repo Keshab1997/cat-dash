@@ -105,7 +105,10 @@ def model_meta(target: Path) -> str:
             "  importConstraints: 0\n  importNormals: 0\n  importTangents: 0\n"
             "  importAnimatedCustomProperties: 0\n  importMaterials: 1\n"
             "  importSkeleton: 0\n  addCollider: 0\n  meshCompression: 0\n"
-            "  isReadable: 0\n  optimizeMeshPolygons: 1\n  optimizeMeshVertices: 1\n"
+            # isReadable = Read/Write Enabled. The art tests read mesh.triangles, and a
+            # non-readable mesh returns an EMPTY array instead of throwing, which would
+            # make a triangle-budget assertion pass at zero. These meshes are tiny.
+            "  isReadable: 1\n  optimizeMeshPolygons: 1\n  optimizeMeshVertices: 1\n"
             "  weldVertices: 1\n  keepQuads: 0\n  swapUVChannels: 0\n"
             "  generateSecondaryUV: 0\n  useFileScale: 1\n  fileScale: 1\n"
             "  globalScale: 1\n  useFileUnits: 1\n  bakeAxisConversion: 0\n"
@@ -331,15 +334,21 @@ class Part:
     def tri_count(self) -> int:
         return sum(len(f) - 2 for f in self.faces)
 
-    def transformed(self, offset=(0.0, 0.0, 0.0), rot_z=0.0, rot_x=0.0):
-        """Rotate about Z then X, then translate. rot_x is what a splayed leg needs."""
+    def transformed(self, offset=(0.0, 0.0, 0.0), rot_z=0.0, rot_x=0.0, rot_y=0.0):
+        """Rotate about Y, then Z, then X, then translate.
+
+        rot_x splays front/back legs (trestle), rot_y tilts left/right parts outward
+        (ears, eyes), rot_z yaws them.
+        """
         cx, cy, cz = offset
+        cos_y, sin_y = math.cos(rot_y), math.sin(rot_y)
         cos_z, sin_z = math.cos(rot_z), math.sin(rot_z)
         cos_x, sin_x = math.cos(rot_x), math.sin(rot_x)
         verts = []
         for x, y, z in self.verts:
-            xr, yr = x * cos_z - y * sin_z, x * sin_z + y * cos_z
-            yr, zr = yr * cos_x - z * sin_x, yr * sin_x + z * cos_x
+            xr, zr = x * cos_y + z * sin_y, -x * sin_y + z * cos_y
+            xr, yr = xr * cos_z - y * sin_z, xr * sin_z + y * cos_z
+            yr, zr = yr * cos_x - zr * sin_x, yr * sin_x + zr * cos_x
             verts.append((xr + cx, yr + cy, zr + cz))
         return Part(verts, self.faces, self.face_uvs)
 

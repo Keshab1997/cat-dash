@@ -30,7 +30,7 @@ ModelImporter:
   importSkeleton: 0
   addCollider: 0
   meshCompression: 0
-  isReadable: 0
+  isReadable: 1
   optimizeMeshPolygons: 1
   optimizeMeshVertices: 1
   weldVertices: 1

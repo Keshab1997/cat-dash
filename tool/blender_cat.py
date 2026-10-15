@@ -80,21 +80,33 @@ def region_uv(region, u_rel0, v_rel0, u_rel1, v_rel1):
 # Atlas painting
 # --------------------------------------------------------------------------- #
 def paint_body(canvas: art.Canvas) -> None:
-    """Torso tile. Ring mapping: u_rel 0 = belly, 0.5 = spine, 1 = belly again
-    (the ring wraps, so the belly wash is painted against both u edges); v goes
-    from the tail end (0) to the chest (1)."""
+    """Torso tile. Ring mapping: u_rel 0 and 1 are the BELLY (the ring seam, so both tile
+    edges are the same place on the model and the white belly wash is painted against
+    both), u_rel 0.5 is the SPINE (where the "mouse" blaze goes); v runs from the tail
+    end (0) to the chest (1)."""
     u0, v0, u1, v1 = R_BODY
     span = u1 - u0
     canvas.fill(u0, v0, u1, v1, FUR)
     canvas.grain_tiled(u0, v0, u1, v1, amount=0.05, block=64)
 
     # mackerel stripes: constant-v bands = rings around the torso, densest mid-flank
-    stripe_rows = (0.045, 0.125, 0.205, 0.285, 0.365, 0.445, 0.525, 0.605, 0.685, 0.765, 0.845)
+    stripe_rows = (0.040, 0.112, 0.184, 0.256, 0.328, 0.400, 0.472, 0.544, 0.616,
+                   0.688, 0.760, 0.832, 0.904)
+    # Mackerel stripes are broken, not continuous rings: each stripe is drawn as 2-3
+    # segments of slightly different width with gaps between them, and every third
+    # stripe skips its middle segment. A uniform ring set made the cat look like a
+    # striped tube sock rather than a tabby.
+    segments = ((0.015, 0.295), (0.345, 0.640), (0.690, 0.985))
     for index, row in enumerate(stripe_rows):
         v = v0 + (v1 - v0) * row
-        half = 0.016 if index % 2 else 0.021
+        base_half = 0.0085 if index % 2 else 0.0115
         colour = FUR_STRIPE if index % 3 else FUR_STRIPE_DK
-        canvas.bands_y(u0, u1, [v], (v1 - v0) * half, colour, alpha=0.95)
+        for seg_index, (u_start, u_end) in enumerate(segments):
+            if index % 3 == 2 and seg_index == 1:
+                continue  # the gap that keeps the pattern from reading as a ring
+            jitter = (0.85, 1.0, 1.15)[(index + seg_index) % 3]
+            canvas.bands_y(u0 + span * u_start, u0 + span * u_end, [v],
+                           (v1 - v0) * base_half * jitter, colour, alpha=1.0)
 
     # white chest and belly: u edges (belly) plus a wash towards the chest end
     for edge in (u0, u1 - span * 0.18):
@@ -104,29 +116,32 @@ def paint_body(canvas: art.Canvas) -> None:
         canvas.blend(edge, v1 - (v1 - v0) * 0.34, edge + span * 0.13, v1, CREAM, 0.55)
         canvas.blend(edge, v1 - (v1 - v0) * 0.18, edge + span * 0.13, v1, CREAM, 0.80)
 
-    # mouse-shaped blaze on the back (owner note: "পিঠে mouse-shaped blaze"):
-    # an outlined oval body with a thin tapering tail running towards the hips,
-    # straddling the spine (u_rel 0.5) on the shoulder/upper back.
+    # Mouse-shaped blaze on the back (owner note: "পিঠে mouse-shaped blaze"). Drawn as a
+    # readable mouse SILHOUETTE — outlined body, head, two ears and a long tail — because an
+    # earlier plain cream oval read as a white smudge/band rather than a mouse.
     centre_u = u0 + span * 0.5
-    body_v = v0 + (v1 - v0) * 0.44
-    du = span * 0.048
-    dv = (v1 - v0) * 0.105
-    canvas.ellipse(centre_u, body_v, du, dv, FUR_STRIPE_DK, 0.85)             # outline
-    canvas.ellipse(centre_u, body_v, du * 0.86, dv * 0.82, CREAM, 0.85)       # mouse body
-    canvas.ellipse(centre_u, body_v + dv * 0.35, du * 0.30, dv * 0.28, FUR_LIGHT, 0.7)  # ear
-    canvas.ellipse(centre_u - du * 0.55, body_v + dv * 0.55, du * 0.26, dv * 0.26,
-                   FUR_LIGHT, 0.7)                                                   # ear
-    canvas.ellipse(centre_u + du * 0.42, body_v + dv * 0.18, du * 0.10, dv * 0.10,
-                   EYE_PUPIL, 0.6)                                                    # eye
-    canvas.segment(centre_u + du * 0.30, body_v - dv * 0.75,
-                   centre_u + du * 0.55, body_v - dv * 3.1, FUR_STRIPE_DK, 0.0045,
-                   alpha=0.75)                                                        # tail
-    tail_start = body_v - dv * 0.9
-    for index, (frac, thickness) in enumerate(((0.30, 0.0060), (0.55, 0.0040), (0.78, 0.0022))):
-        next_frac = (0.55, 0.78, 1.0)[index]
-        canvas.segment(centre_u + du * 0.55, tail_start - (v1 - v0) * frac,
-                       centre_u + du * 0.30, tail_start - (v1 - v0) * next_frac,
-                       FUR_STRIPE_DK, thickness, alpha=0.55)
+    mouse_u, mouse_v = centre_u, v0 + (v1 - v0) * 0.62   # mid-back, clear of neck and hips
+    du = span * 0.062
+    dv = (v1 - v0) * 0.135
+
+    def mouse_spot(du_scale, dv_scale, offset_u, offset_v, colour, alpha):
+        canvas.ellipse(mouse_u + du * offset_u, mouse_v + dv * offset_v,
+                       du * du_scale, dv * dv_scale, colour, alpha)
+
+    outline, fill = FUR_STRIPE_DK, CREAM
+    # tail first (drawn "under" the body): long, thin, curving towards the hips
+    canvas.segment(mouse_u + du * 0.62, mouse_v - dv * 0.72,
+                   mouse_u + du * 0.30, mouse_v - dv * 2.9, outline, 0.0060, alpha=0.85)
+    mouse_spot(1.00, 0.62, 0.0, 0.0, outline, 0.95)      # body outline
+    mouse_spot(0.90, 0.54, 0.0, 0.0, fill, 1.0)          # body
+    mouse_spot(0.42, 0.36, 0.86, 0.22, outline, 0.95)    # head outline
+    mouse_spot(0.34, 0.28, 0.88, 0.22, fill, 1.0)        # head
+    mouse_spot(0.26, 0.22, 0.74, 0.52, outline, 0.95)    # ear (near)
+    mouse_spot(0.17, 0.14, 0.75, 0.52, fill, 1.0)
+    mouse_spot(0.24, 0.20, 1.00, 0.42, outline, 0.90)    # ear (far)
+    mouse_spot(0.15, 0.12, 1.01, 0.42, fill, 1.0)
+    mouse_spot(0.07, 0.05, 0.97, 0.20, EYE_PUPIL, 0.85)  # eye
+    mouse_spot(0.10, 0.08, 0.50, 0.30, FUR_LIGHT, 0.45)  # shoulder shading on the body
 
     # spare tile keeps plain golden fur so nothing samples an unpainted pixel
     su0, sv0, su1, sv1 = R_FUR_SPARE
@@ -145,34 +160,37 @@ def paint_head(canvas: art.Canvas) -> None:
     canvas.grain_tiled(u0, v0, u1, v1, amount=0.05, block=64)
 
     # white/cream mask over the chin, muzzle base and lower cheeks
-    canvas.ellipse(*rect(R_HEAD, 0.50, 0.070), span_u * 0.098, span_v * 0.070, CREAM, 0.95)
-    canvas.ellipse(*rect(R_HEAD, 0.50, 0.125), span_u * 0.078, span_v * 0.052, CREAM, 0.50)
-    canvas.ellipse(*rect(R_HEAD, 0.50, 0.085), span_u * 0.052, span_v * 0.042, CREAM_WARM, 0.45)
+    canvas.ellipse(*rect(R_HEAD, 0.50, 0.085), span_u * 0.108, span_v * 0.085, CREAM, 0.95)
+    canvas.ellipse(*rect(R_HEAD, 0.50, 0.150), span_u * 0.085, span_v * 0.060, CREAM, 0.50)
+    canvas.ellipse(*rect(R_HEAD, 0.50, 0.100), span_u * 0.058, span_v * 0.050, CREAM_WARM, 0.45)
 
     # No painted eyeliner: EyeL/EyeR carry their own dark rim, and a second painted
     # ring around the socket read as smudges on the fur.
 
-    # tabby "M": vertical stripes between and above the eyes
-    for u_rel in (0.460, 0.500, 0.540):
-        canvas.bands_x(v0 + span_v * 0.56, v0 + span_v * 0.92,
-                       [u0 + span_u * u_rel], span_u * 0.011, FUR_STRIPE, alpha=0.98)
+    # Tabby "M" above the eyes: two short strokes per side, angled outward, plus a
+    # centre pair that stops well above the brow. The centre stroke used to run from
+    # v_rel 0.56 to 0.92, which painted one dark line straight down the middle of the
+    # face and read as a "crack" in the render.
     for side in (-1, 1):
-        canvas.segment(*rect(R_HEAD, 0.50 + side * 0.040, 0.58),
-                       *rect(R_HEAD, 0.50 + side * 0.150, 0.70),
-                       FUR_STRIPE, 0.0055, alpha=0.8)
+        canvas.segment(*rect(R_HEAD, 0.50 + side * 0.032, 0.870),
+                       *rect(R_HEAD, 0.50 + side * 0.070, 0.735),
+                       FUR_STRIPE, 0.0042, alpha=0.70)
+        canvas.segment(*rect(R_HEAD, 0.50 + side * 0.092, 0.885),
+                       *rect(R_HEAD, 0.50 + side * 0.128, 0.750),
+                       FUR_STRIPE, 0.0038, alpha=0.65)
 
     # cheek strokes
     for side in (-1, 1):
         for index, (u_a, v_a, u_b, v_b) in enumerate(
-                ((0.295, 0.360, 0.205, 0.300), (0.300, 0.415, 0.215, 0.360))):
+                ((0.290, 0.330, 0.235, 0.295), (0.295, 0.375, 0.245, 0.340))):
             canvas.segment(*rect(R_HEAD, 0.50 + side * u_a, v_a),
                            *rect(R_HEAD, 0.50 + side * u_b, v_b),
-                           FUR_STRIPE, 0.0038 - index * 0.0006, alpha=0.55)
+                           FUR_STRIPE, 0.0030 - index * 0.0005, alpha=0.45)
 
     # crown stripes (kept off the u wrap seam at 0/1, which is the nape)
-    for u_rel in (0.022, 0.978, 0.080, 0.920, 0.165, 0.835):
-        canvas.bands_x(v0 + span_v * 0.74, v0 + span_v * 0.96,
-                       [u0 + span_u * u_rel], span_u * 0.012, FUR_STRIPE, alpha=0.75)
+    for u_rel in (0.055, 0.945):
+        canvas.bands_x(v0 + span_v * 0.78, v0 + span_v * 0.92,
+                       [u0 + span_u * u_rel], span_u * 0.009, FUR_STRIPE, alpha=0.40)
 
 
 def paint_legs(canvas: art.Canvas) -> None:
@@ -192,9 +210,9 @@ def paint_tail(canvas: art.Canvas) -> None:
     span = v1 - v0
     canvas.fill(u0, v0, u1, v1, FUR)
     canvas.grain_tiled(u0, v0, u1, v1, amount=0.05, block=64)
-    for row in (0.06, 0.15, 0.24, 0.33, 0.42, 0.51, 0.60):
-        canvas.bands_y(u0, u1, [v0 + span * row], span * 0.030, FUR_STRIPE, alpha=0.92)
-    canvas.vgrad(u0, v0 + span * 0.68, u1, v0 + span * 0.80, FUR, CREAM)
+    for row in (0.045, 0.115, 0.185, 0.255, 0.325, 0.395, 0.465, 0.535, 0.605):
+        canvas.bands_y(u0, u1, [v0 + span * row], span * 0.022, FUR_STRIPE, alpha=1.0)
+    canvas.vgrad(u0, v0 + span * 0.66, u1, v0 + span * 0.76, FUR, CREAM)
     canvas.vgrad(u0, v0 + span * 0.80, u1, v1, CREAM, CREAM)
 
 
@@ -236,10 +254,10 @@ def paint_eye(canvas: art.Canvas) -> None:
     # 78 deg keeps the iris inside the 90 deg the sphere exposes in v (a 130 deg iris
     # wrapped past the pole and read as a flat teal cap), while still being large
     # enough that the eye does not look like a white ball from the side.
-    disk(88.0, EYE_RIM, 1.0)
-    disk(84.0, EYE_TEAL_DK)
-    disk(78.0, EYE_TEAL)
-    disk(40.0, EYE_TEAL, 1.0)
+    disk(96.0, EYE_RIM, 1.0)
+    disk(92.0, EYE_TEAL_DK)
+    disk(86.0, EYE_TEAL)
+    disk(44.0, EYE_TEAL, 1.0)
     disk(26.0, EYE_PUPIL)
     disk(9.0, WHITE, 0.95, du_deg=-16.0, dv_deg=14.0)
     disk(4.0, WHITE, 0.9, du_deg=-20.0, dv_deg=16.0)
@@ -275,8 +293,8 @@ JOINTS = {
     "Body": (0.0, -0.020, 0.245),
     "Neck": (0.0, -0.145, 0.280),
     "Head": (0.0, -0.260, 0.365),
-    "EyeL": (-0.0510, -0.3835, 0.4160),
-    "EyeR": (0.0510, -0.3835, 0.4160),
+    "EyeL": (-0.0530, -0.3830, 0.4155),
+    "EyeR": (0.0530, -0.3830, 0.4155),
     "Muzzle": (0.0, -0.355, 0.348),
     "EarL": (-0.058, -0.283, 0.448),
     "EarR": (0.058, -0.283, 0.448),
@@ -306,15 +324,18 @@ def build_body() -> art.Part:
             break
     if part is None:
         raise SystemExit("error: could not orient the torso belly/back UV seam")
-    span = u1 - u0
-    wrapped = [[((u0 + span * (0.5 * (((u - u0) / span + 0.5) % 1.0))), v)
-                for u, v in face] for face in part.face_uvs]
-    return art.Part(part.verts, part.faces, wrapped)
+    # No UV re-wrap. art.tube() already starts ring u at the belly (verified by the phase
+    # pick above), so u_rel 0/1 is the belly — the tile's left/right edges, which are the
+    # same place on the model — and u_rel 0.5 is the spine, the tile's centre. The previous
+    # "wrap" formula scaled by 0.5, which folded the whole ring into HALF the tile: the
+    # belly-white then landed on the spine (the cat had a white back) and half the body
+    # texture was never sampled.
+    return part
 
 
 def build_neck() -> art.Part:
-    return art.tube([(0.0, -0.140, 0.275), (0.0, -0.190, 0.310), (0.0, -0.232, 0.345)],
-                    [0.090, 0.084, 0.078], segments=12,
+    return art.tube([(0.0, -0.135, 0.270), (0.0, -0.185, 0.312), (0.0, -0.230, 0.352)],
+                    [0.092, 0.082, 0.068], segments=12,
                     u_range=(R_FUR_SPARE[0], R_FUR_SPARE[2]),
                     ring_v=[R_FUR_SPARE[1] + (R_FUR_SPARE[3] - R_FUR_SPARE[1]) * t
                             for t in (0.0, 0.5, 1.0)],
@@ -331,14 +352,14 @@ def build_head() -> art.Part:
                       v_range=(R_HEAD[1], R_HEAD[3]), phase=3.141592653589793)
 
 
-EYE_YAW = -0.12  # radians: how far the left eye looks outward (right eye mirrors it)
+EYE_YAW = -0.15  # radians: how far the left eye looks outward (right eye mirrors it)
 
 
 def build_eyes() -> tuple[art.Part, art.Part]:
     """Big glossy eye spheres. The iris is painted at pattern u_rel 0.5, so phase=pi
     lands it on Blender -Y (straight ahead); EYE_YAW then turns the left eye outward
     and the right eye is that finished eye mirrored across X."""
-    proto = art.sphere((0.0, 0.0, 0.0), (0.039, 0.035, 0.040),
+    proto = art.sphere((0.0, 0.0, 0.0), (0.036, 0.033, 0.037),
                        segments=14, rows=9, u_range=(R_EYE[0], R_EYE[2]),
                        v_range=(R_EYE[1], R_EYE[3]), phase=3.141592653589793)
     left = proto.transformed(offset=JOINTS["EyeL"], rot_z=EYE_YAW)
@@ -354,34 +375,34 @@ def build_muzzle() -> art.Part:
     is geometry, sitting on the face where the head ellipsoid lets it protrude.
     """
     nose_uv = region_uv(R_MUZZLE, 0.70, 0.86, 0.96, 0.99)
-    return art.pyramid((0.0, -0.404, 0.344), (0.028, 0.016), (0.0, -0.414, 0.337),
+    return art.pyramid((0.0, -0.408, 0.352), (0.033, 0.019), (0.0, -0.424, 0.344),
                        nose_uv, nose_uv)
 
 
 def build_ear(side: int) -> art.Part:
     """Rounded triangular ear: a short tapered cone (base -> rounded tip) whose
     forward face samples the pink inner-ear band of the ear tile."""
-    base = (side * 0.058, -0.283, 0.448)
-    path = [base, (base[0] + side * 0.012, base[1] - 0.003, base[2] + 0.052),
-            (base[0] + side * 0.020, base[1] - 0.005, base[2] + 0.097)]
-    radii = [0.060, 0.036, 0.011]
-    u0, v0, u1, v1 = R_EAR
-    return art.tube(path, radii, segments=10, u_range=(u0, u1),
-                    ring_v=[v0 + (v1 - v0) * t for t in (0.0, 0.45, 0.95)],
+    # Built upright at the origin, then splayed outward with rot_y. Modelling them
+    # already-tilted (offsetting each ring sideways) made the two ears merge into one
+    # lumpy mass over the crown in the last render.
+    part = art.tube([(0.0, 0.0, 0.0), (0.0, -0.003, 0.050), (0.0, -0.005, 0.094)],
+                    [0.052, 0.032, 0.010], segments=10, u_range=(R_EAR[0], R_EAR[2]),
+                    ring_v=[R_EAR[1] + (R_EAR[3] - R_EAR[1]) * t for t in (0.0, 0.45, 0.95)],
                     phase=3.141592653589793, hint=(1.0, 0.0, 0.0), caps=(True, True))
+    return part.transformed(offset=(side * 0.062, -0.286, 0.440), rot_y=side * 0.30)
 
 
 def build_leg(side: int, front: bool) -> art.Part:
     """Front leg: near-straight. Hind leg: hip -> hock -> paw, so the bent hock of
     the reference reads in silhouette. Both end on a flat ring at y=0."""
     if front:
-        x, y, top = side * 0.052, -0.150, 0.200
+        x, y, top = side * 0.050, -0.152, 0.215
         path = [(x, y, top), (x, y - 0.004, top * 0.55), (x, y - 0.004, 0.0)]
-        radii = [0.046, 0.032, 0.034]
+        radii = [0.044, 0.028, 0.030]
     else:
         x = side * 0.062
-        path = [(x, 0.140, 0.215), (x, 0.196, 0.115), (x, 0.196, 0.0)]
-        radii = [0.062, 0.038, 0.032]
+        path = [(x, 0.145, 0.220), (x, 0.198, 0.110), (x, 0.198, 0.0)]
+        radii = [0.060, 0.034, 0.029]
     u0, v0, u1, v1 = R_LEG
     return art.tube(path, radii, segments=10, u_range=(u0, u1),
                     ring_v=[v1, v0 + (v1 - v0) * 0.5, v0], phase=3.141592653589793,
@@ -390,11 +411,11 @@ def build_leg(side: int, front: bool) -> art.Part:
 
 def build_tail() -> art.Part:
     """Long tail curving up and forward, cream tip last ~20% (atlas v)."""
-    path = [(0.0, 0.245, 0.285), (0.0, 0.290, 0.390), (0.0, 0.282, 0.500),
-            (0.0, 0.240, 0.600), (0.0, 0.186, 0.660)]
-    radii = [0.043, 0.035, 0.029, 0.023, 0.018]
+    path = [(0.0, 0.250, 0.270), (0.0, 0.300, 0.360), (0.0, 0.318, 0.460),
+            (0.0, 0.298, 0.560), (0.0, 0.248, 0.640), (0.0, 0.196, 0.686)]
+    radii = [0.050, 0.043, 0.036, 0.030, 0.024, 0.019]
     u0, v0, u1, v1 = R_TAIL
-    ring_v = [v0 + (v1 - v0) * t for t in (0.0, 0.24, 0.48, 0.72, 0.98)]
+    ring_v = [v0 + (v1 - v0) * t for t in (0.0, 0.16, 0.32, 0.48, 0.64, 0.96)]
     return art.tube(path, radii, segments=12, u_range=(u0, u1), ring_v=ring_v,
                     phase=3.141592653589793, hint=(1.0, 0.0, 0.0), caps=(True, True))
 
