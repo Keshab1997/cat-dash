@@ -75,6 +75,22 @@ a frozen member. Implementations live in the owning agent's files.
 - **One scene, one owner:** the CatDash scene and its generator belong to C only. B never
   touches scenes/UI; A never touches `Assets/Art/**` or scenes.
 
+## Integration log (Captain)
+
+- **2026-10-16 — CD-B1-A (gameplay core) reviewed and merged to `main` as `9cf8b8e29b9712e12a998652c54ceadac2c65ca4`**
+  (branch `work/agent-a/cd-b1-gameplay-core`, tip `29863fd519679ff42a2276ac19191a037e8a4e9c`, `--no-ff`, no conflicts).
+  Handoff reported `deb60c3` as tip — stale by one commit; only the tip SHA counts.
+  Frozen members in `RunState.cs` untouched ✅. `docs/HANDOFF.md` template restored by Captain.
+- **Carried defects (assigned back to A as CD-B1-A2, not fixed silently):**
+  1. No tests were added — contract required focused EditMode tests.
+  2. `RunInput` is never re-enabled: `OnApplicationPause(true)`/focus loss calls `DisableInput()`,
+     nothing re-enables it, so after resume swipes stay dead (acceptance criterion 7).
+  3. `PlayerMover.ResetToStart()` leaves world `z` increasing while `RunController.Restart()` zeroes
+     `DistanceMeters` → two different longitudinal references for spawner/mover/camera.
+- **Spawner coordinate rule (binding for C):** longitudinal placement uses `RunController.DistanceMeters`
+  (zeroed on restart) as the world reference; on `Restart()` the scene generator resets `PlayerMover`
+  and `RoadLoop.ResetToStart(0f)`.
+
 ## Known risks carried into the batch
 
 1. This is the first real Unity run of the kit itself (kit `VALIDATION.md`: no Editor,
