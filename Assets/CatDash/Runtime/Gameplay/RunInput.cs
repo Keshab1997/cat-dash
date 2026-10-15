@@ -117,13 +117,16 @@ namespace CatDash.Gameplay
             if (Input.GetKeyDown(KeyCode.RightArrow)) RaiseSwipe(1);
         }
 
-        private void OnApplicationPause(bool pauseStatus)
+        /// <summary>Public seam (same convention as RunController.OnApplicationPause) so EditMode tests
+        /// and the self-registration path can drive pause/resume directly.</summary>
+        public void OnApplicationPause(bool pauseStatus)
         {
             if (pauseStatus) DisableInput();
             else if (registeredController != null && registeredController.IsRunning) EnableInput();
         }
 
-        private void OnApplicationFocus(bool hasFocus)
+        /// <summary>Public seam; see OnApplicationPause.</summary>
+        public void OnApplicationFocus(bool hasFocus)
         {
             if (!hasFocus) DisableInput();
             else if (registeredController != null && registeredController.IsRunning) EnableInput();
