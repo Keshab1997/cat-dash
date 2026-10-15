@@ -87,6 +87,19 @@ a frozen member. Implementations live in the owning agent's files.
      nothing re-enables it, so after resume swipes stay dead (acceptance criterion 7).
   3. `PlayerMover.ResetToStart()` leaves world `z` increasing while `RunController.Restart()` zeroes
      `DistanceMeters` → two different longitudinal references for spawner/mover/camera.
+- **2026-10-16 — CD-B1-A2 (EditMode tests + pause/longitudinal fixes) reviewed and merged**
+  (branch `work/agent-a/cd-b1-tests-pause`, tip `561da58cb5bd3e037d64d5fd96bb4e1a28b3e68c`, one commit,
+  `--no-ff`, no conflicts; paths stayed inside A's ownership; 4 test files + `.meta` with unique GUIDs).
+  `playerZForDistance` lowercase alias and the manual clamp in `PlayerMover.Step` are noted below.
+- **Open defects after A2 (assigned to A as CD-B1-A3):**
+  1. Obstacle contact uses only `OnTriggerStay` — a fast player can cross a collider between frames and
+     the run continues; `OnTriggerEnter` is required for the first real contact.
+  2. No camera framing rule: `ComputeDesiredPosition` is pure offset addition; nothing keeps the cat in the
+     lower foreground or guarantees the near plane never clips it (brief criterion 3 + visual gate).
+  3. Test isolation: no test calls the existing `RunController.ResetStatics()` hook, so the static `Active`
+     reference survives between EditMode tests.
+  4. Cosmetics: `playerZForDistance` lowercase alias and the hand-rolled clamp in `PlayerMover.Step`
+     duplicate `Lanes.Clamp` — fold into A3.
 - **Spawner coordinate rule (binding for C):** longitudinal placement uses `RunController.DistanceMeters`
   (zeroed on restart) as the world reference; on `Restart()` the scene generator resets `PlayerMover`
   and `RoadLoop.ResetToStart(0f)`.
