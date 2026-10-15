@@ -20,6 +20,7 @@ namespace CatDash.Tests.EditMode
         [SetUp]
         public void SetUp()
         {
+            RunController.ResetStatics();
             spawnerRoot = new GameObject("Test Obstacle Spawner");
             spawner = spawnerRoot.AddComponent<ObstacleSpawner>();
 

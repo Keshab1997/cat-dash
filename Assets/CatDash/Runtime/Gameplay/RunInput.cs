@@ -120,11 +120,13 @@ namespace CatDash.Gameplay
         private void OnApplicationPause(bool pauseStatus)
         {
             if (pauseStatus) DisableInput();
+            else if (registeredController != null && registeredController.IsRunning) EnableInput();
         }
 
         private void OnApplicationFocus(bool hasFocus)
         {
             if (!hasFocus) DisableInput();
+            else if (registeredController != null && registeredController.IsRunning) EnableInput();
         }
     }
 }

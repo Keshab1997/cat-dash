@@ -73,4 +73,35 @@ public class RunInputTests
         rc.Restart();
         Assert.IsTrue(input.InputEnabled);
     }
+
+    [Test]
+    public void PauseResume_WhenRunning_ReenablesInput()
+    {
+        rc.BeginRun();
+        Assert.IsTrue(input.InputEnabled);
+        input.OnApplicationPause(true);
+        Assert.IsFalse(input.InputEnabled);
+        input.OnApplicationPause(false);
+        Assert.IsTrue(input.InputEnabled);
+    }
+
+    [Test]
+    public void PauseResume_AfterGameOver_StaysDisabled()
+    {
+        rc.BeginRun();
+        rc.EndRun();
+        input.OnApplicationPause(true);
+        input.OnApplicationPause(false);
+        Assert.IsFalse(input.InputEnabled);
+    }
+
+    [Test]
+    public void FocusLossAndRegain_WhenRunning_MatchesPauseBehavior()
+    {
+        rc.BeginRun();
+        input.OnApplicationFocus(false);
+        Assert.IsFalse(input.InputEnabled);
+        input.OnApplicationFocus(true);
+        Assert.IsTrue(input.InputEnabled);
+    }
 }
