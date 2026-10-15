@@ -106,6 +106,17 @@ a frozen member. Implementations live in the owning agent's files.
 
 ## Known risks carried into the batch
 
+### 2026-10-16 — CD-B1-A4 and CD-B1-C1 reviewed and merged serially
+- A4 `work/agent-a/cd-b1-playmode-integration` tip `79d4830e8047f24e284af8ce52ed5bd73f823da3` → `3bcd3c1f` (2 PlayMode test
+  files + .meta; only new files, no Runtime change — Rigidbody(isKinematic) present, so trigger callbacks are real).
+- C1 `work/agent-c/cd-b1-pattern-hud-scene` tip `db905c0e593cee99c6ac64fd892e63826847468a` (3 commits, cut from the older
+  `e6904bb` baseline) → `2723dbe2`: `--no-ff`, **no conflicts** (verified with `git merge-tree` before touching main), C never
+  touched `Runtime/Gameplay/**` or `RunState.cs`; greybox fallback + `[Explicit]` scene test (never a false pass);
+  `ResetAndReseed` on Ready/Running keeps the restart contract. C added `UnityEngine.UI` to two asmdefs — UGUI was already
+  owner-approved in this baseline, no package change.
+- **Still NOT RUN: everything Unity.** No Editor in the sandbox; static review + preflight only. B (`cd-b1-cat-props`)
+  has pushed nothing, so any visual comparison remains impossible and stays NOT RUN.
+
 ### CD-B1-A3 (hit detection + camera framing) — blockers cleared, merged 2026-10-16
 Branch `work/agent-a/cd-b1-hit-camera`, final tip `8bfb6246451432bf6c5fcc9fb7ea5e5e92c3fb23` (fix commit
 `8bfb624`), `--no-ff` merge, no conflicts, paths inside A's ownership. Both held blockers are gone in the
