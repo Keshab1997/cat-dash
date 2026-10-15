@@ -1,7 +1,7 @@
 # Cat Dash — first playable brief
 
 ## Confirmed by owner
-- New public Android Unity test project, to be handed to Head for subsequent work.
+- New public Android Unity test project, to be handed to Captain for subsequent work.
 - A cat runs along a road; obstacles appear; hitting an obstacle ends the run.
 - Beautiful AI-assisted assets/art direction.
 - Owner requires the actual rendered game to closely match the supplied visual target,
@@ -9,7 +9,7 @@
 - Existing Play Console account; Mac Unity Hub Personal license activated.
 - No ads now; optional AdMob later. Manual CI only, no surprise paid services.
 
-## Proposed defaults — Head should confirm only material open decisions
+## Proposed defaults — Captain should confirm only material open decisions
 
 > **Confirmed by the owner 2026-10-16 (batch CD-B1).** Portrait three-lane runner, swipe
 > left/right, auto-run with a rear follow camera, distance score, start/game-over/restart.
@@ -45,7 +45,7 @@ with no paid API by default. A hand-authored/procedural original model is an hon
 fallback if AI mesh tools are unavailable; do not pretend an image is a rigged model.
 Need an actual cat mesh, simple run animation, road, crates/barriers/pots, buildings,
 materials, lighting and a clean HUD. Keep visual complexity within measured device limits.
-Head must agree the asset toolchain with Content; do not install packages silently.
+Captain must agree the asset toolchain with Content; do not install packages silently.
 
 ## Explicit non-goals
 No multiplayer, shop, skins inventory, missions, IAP, live ads, online leaderboard,
@@ -71,7 +71,7 @@ actual gameplay, not a promise of pixel-identical AI-image reproduction.
 - Obstacles: styled wooden crates, colorful barriers and pots with readable silhouettes;
   colliders should match gameplay expectations, not every decorative mesh detail.
 - Camera/composition: portrait rear follow view, cat prominent in the lower foreground,
-  obstacles readable ahead; preserve safe-path readability despite decorative detail.
+  obstacles readable acaptain; preserve safe-path readability despite decorative detail.
 - Lighting: warm soft daylight, coherent soft shadows, gentle atmospheric depth and
   orange/cream/teal palette. Do not require expensive real-time effects blindly.
 - HUD: restrained, readable on phones; do not obscure the cat or road.
@@ -80,7 +80,7 @@ Content first targets ONE polished representative road segment + cat + obstacle 
 then reuses that quality in the runnable slice. Graybox can prove mechanics but must
 be labelled graybox, never presented as finished visual delivery.
 
-Head/QA must compare authentic Unity Game-view or device captures from the reviewed
+Captain must compare authentic Unity Game-view or device captures from the reviewed
 candidate SHA against the reference. Include a representative gameplay screenshot
 and short running clip when capture is available, plus a brief checklist of matches,
 differences, unresolved gaps and actual device/profiler evidence where measured.

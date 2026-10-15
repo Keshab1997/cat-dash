@@ -1,26 +1,26 @@
 # Cat Dash 🐈
 
-A public **Android Unity starter and Head-agent handoff**, not a finished game.
+A public **Android Unity starter and Captain-agent handoff**, not a finished game.
 
 ![AI-generated art direction concept — not gameplay](docs/art/cat-dash-visual-target.png)
 
 ## The idea
 A charming cat runs down a colorful street. Dodge obstacles; collision ends the run.
 AI-assisted original art, a clean mobile camera and a small polished playable slice.
-Three-lane swipe controls and portrait layout are proposed defaults for Head to confirm.
+Three-lane swipe controls and portrait layout are proposed defaults for Captain to confirm.
 
 ## Start here
-- **[Copy this prompt to Head (বাংলা)](HEAD_HANDOFF_BN.md)**
+- **[Copy this prompt to Captain (বাংলা)](CAPTAIN_HANDOFF_BN.md)**
 - [Game brief and acceptance criteria](docs/GAME_BRIEF.md)
-- [Agent contract](AGENTS.md) / [Head instructions](agents/HEAD.md)
+- [Agent contract](AGENTS.md) / [Captain instructions](agents/HEAD.md)
 - [Unity, signing and Play setup](docs/SETUP.md)
 
-Kit revision is recorded in unity-kit.lock.json. Team: Head + Gameplay + Content + QA;
+Kit revision is recorded in unity-kit.lock.json. Team: Captain + Agent A + Agent B + Agent C;
 human forwards briefs/reports. Optional [Idea Partner](agents/IDEA.md) for later design discussion.
 
 ## Current status
 Included: Unity 6000.3.3f1 starter source, minimal physics smoke tests, kit tooling,
-manual Unity Android workflow, filled game brief, Head prompt and AI concept art.
+manual Unity Android workflow, filled game brief, Captain prompt and AI concept art.
 **Not implemented:** cat runner gameplay, actual cat/obstacle 3D assets, run animation,
 CatDash scene, polished UI or device-tested build. The kit's generic sphere prototype
 is not this game. No Unity compilation/tests, Android build or Play upload run here.
@@ -44,6 +44,12 @@ need owner approval. Customized files conflict instead of being overwritten.
 See [update guide](docs/UPDATING.md). No automatic sync, push or CI.
 
 ## Team names / ভাষা
-Head → **Agent A** (Gameplay), **Agent B** (Content/UI), **Agent C** (Reviewer/QA).
-Head-এর সব প্রশ্ন, plan, briefs ও reports সহজ বাংলায় হবে। Code, commands, paths ও
+Captain → **Agent A** (Gameplay), **Agent B** (Content/UI), **Agent C** (Captain review).
+Captain-এর সব প্রশ্ন, plan, briefs ও reports সহজ বাংলায় হবে। Code, commands, paths ও
 secret names অপরিবর্তিত থাকবে। Idea Partner আগের মতো আলাদা planning role।
+
+## বর্তমান team/push নিয়ম
+Captain বাংলায় ছোট তিনটি block দেবে। Agent A gameplay, Agent B 3D art, Agent C
+scene/UI/audio—আলাদা branch-এ একসঙ্গে কাজ ও branch push। Main push নয়। Captain
+নিজে review/scoped checks করে serial merge main; আলাদা QA নেই।
+আগের historical batch notes-এ পুরোনো roles থাকলে বর্তমান AGENTS.md-ই প্রাধান্য পাবে।

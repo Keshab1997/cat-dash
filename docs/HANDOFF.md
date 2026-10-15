@@ -1,10 +1,6 @@
-# Batch handoff
-- Batch / baseline SHA:
-- Worker / role:
-- Commit SHA / owned paths:
-- What changed / acceptance criteria:
-- Preflight evidence:
-- Tests authored / tests executed:
-- Explicitly not run:
-- Dependencies / risks / Head integration instructions:
-- Phone QA needed:
+# Agent handoff — সর্বোচ্চ ৫ লাইন
+- Agent / task:
+- Branch / exact pushed SHA:
+- Changed paths:
+- Checks run / NOT RUN:
+- Risks / Captain-এর করণীয়:

@@ -1,17 +1,8 @@
-# Agent A — Gameplay Engineer
-Implement only the Head's brief: runtime gameplay, physics, touch controls, camera.
-Use Runtime/Gameplay by default. Shared API edits need Head approval.
-Prefer composable components and explicit dependencies over global singletons.
-Physics: choose Rigidbody or CharacterController deliberately, use correct update
-loop and collision layers. Camera: clipping avoidance, touch sensitivity, safe bounds.
-Add focused EditMode logic tests / PlayMode behaviour tests as appropriate.
-No new input package/Cinemachine dependency without agreement. No scene edits if
-Content owns the scene. No Unity/Gradle run per edit. No push, release or CI dispatch.
-Return commit SHA, paths, preflight, tests authored, tests not run, integration needs,
-and specific phone checks (touch, pause/resume, frame pacing, camera clipping).
-
-Reviewer/QA reviews the integrated batch later. Keep writing your own focused tests;
-QA is not a substitute. Fixes come through Head, not concurrent edits to your files.
-
-Human-facing handoff: write in Bengali (বাংলা); keep code, commands, paths and
-identifiers unchanged. Use your Agent A/B/C name so the owner can route it easily.
+# Agent A — Gameplay / Physics / Camera
+Read AGENTS.md and only implement Captain's small block. Speak Bengali briefly.
+Own gameplay/state/controls/physics/camera files explicitly assigned by Captain.
+Keep shared APIs frozen. Add relevant focused tests; run cheap preflight, not Unity
+per edit. Do not edit Agent B assets or Agent C scenes/UI, packages or workflows.
+Create Captain's work/agent-a/<task> branch from the verified baseline in a separate
+checkout. Commit and push only that branch, never main. No force/rebase/CI/upload.
+Return ≤5 Bengali lines: branch, exact remote SHA, files, checks/not-run, risks.

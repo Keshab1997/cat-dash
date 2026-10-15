@@ -68,7 +68,7 @@ Empty created directories may remain after rollback. Use Git history as your bac
 The lockfile records toolkit revision, not proof that protected starter seed files
 were upgraded; `protected_seed_files_not_updated` makes that limitation explicit.
 
-After success, review `git diff`, commit and push deliberately as Head. The updater
+After success, review `git diff`, commit and push deliberately as Captain. The updater
 never commits/pushes, launches Unity, reads secret values, changes GitHub settings,
 creates tags/releases, dispatches CI or uploads anything to Play. Secrets readiness
 is a separate manual workflow.
@@ -88,4 +88,4 @@ rather than inventing a SHA or claiming the game is updated.
 প্রথমে `--check` → দেখানো commit-এর changes review → নিজের changes commit →
 নির্দিষ্ট full SHA দিয়ে `--apply --ref ...`। Workflow changes হলে আগে owner approval,
 তারপর `--approve-workflows`। Conflict হলে কিছু apply হবে না; manual merge করতে হবে।
-Game files/secrets untouched; শেষে diff দেখে Head commit/push করবে।
+Game files/secrets untouched; শেষে diff দেখে Captain commit/push করবে।

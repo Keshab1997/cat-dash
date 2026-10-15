@@ -1,71 +1,67 @@
 <!-- unity-agent-kit:start -->
-# Unity Android — agent operating contract
-Read all AGENTS.md before editing, including user notes below this managed block.
+# Unity Android — Captain team contract
+Read all AGENTS.md, including owner notes below this managed block.
 
-## Human-routed team: four agents total (development)
-Head + Gameplay + Content + Reviewer/QA. The human copies briefs and returns handoffs.
-An optional fifth role, Game Idea / Design Partner (agents/IDEA.md), discusses concepts
-before development and returns a self-contained Head prompt; it never edits or runs CI.
-Head briefs two implementation workers first, then Reviewer/QA at the batch boundary.
-Head is NOT a background orchestrator. Never claim to have contacted another agent.
-Read agents/HEAD.md, agents/GAMEPLAY.md, agents/CONTENT.md or agents/QA.md for your role.
-Workers use separate checkouts. Head integrates; only Head pushes main.
-Never give both workers ownership of the same scene, prefab, meta or shared API.
-Reviewer/QA is read-only by default; only Head-assigned exclusive test files may be edited.
-QA does not replace worker-authored tests, launch CI, or become a second integrator.
+## Team: four agents total
+- Captain: divide work, define shared APIs/ownership, review all three deliveries,
+  run scoped checks, resolve integration and merge reviewed work into main.
+- Agent A: gameplay/state, controls, physics, camera (agents/GAMEPLAY.md).
+- Agent B: original 3D assets, materials, textures, animation (agents/ART.md).
+- Agent C: level/scene/prefab wiring, presentation/UI/audio (agents/CONTENT.md).
+There is NO separate QA agent. Captain reviews/tests; all workers write relevant tests.
+Optional Idea Partner (agents/IDEA.md) discusses concepts before development only.
+Captain instructions: agents/CAPTAIN.md (legacy agents/HEAD.md points there).
 
-## Agent names and language
-- Head: integrator; talks to the owner in Bengali (বাংলা).
-- Agent A: Gameplay Engineer — controls, physics, camera, gameplay logic.
-- Agent B: Content / UI Engineer — assets, level, scenes/prefabs, UI.
-- Agent C: Reviewer / QA — bounded batch review, read-only by default.
-Use these names in briefs and handoffs; filenames remain HEAD.md, GAMEPLAY.md,
-CONTENT.md and QA.md for compatibility. Idea Partner is a separate planning role.
-Head must write all owner-facing questions, plans, copy-paste briefs, explanations
-and progress/final reports in clear Bengali (বাংলা), not English-only prose.
-Keep code, commands, file paths, identifiers, secret names and quoted errors unchanged;
-explain their meaning in Bengali. Other agents' user-facing handoffs should also be
-in Bengali. This changes names/language, not ownership, permissions or check policy.
+## Short Bengali chat, parallel implementation
+Write owner-facing questions, plans, briefs and reports in Bengali (বাংলা), briefly.
+Keep code, paths, commands, identifiers, secret names and quoted errors exact.
+Captain sends THREE separate copy-paste text blocks, labelled Agent A / B / C,
+8–10 lines each, one small deliverable per agent. No long essay or full-game backlog.
+Human forwards blocks and returns reports; never claim autonomous agent contact.
+All three may work concurrently in separate checkouts/branches from one verified
+baseline SHA. Exclusive files/folder .meta ownership; never parallel-edit a scene.
+Agent C owns scene wiring; Agent B owns art assets, not scenes; Agent A owns core code.
+Freeze shared contracts and shared folder .meta files before branching. If unclear,
+Captain asks one short question instead of letting workers guess conflicting APIs.
 
-## Implement first, check at the batch boundary
-- Cheap `python3 tool/preflight.py` before a commit. No Unity per tiny edit.
-- `python3 tool/plan_checks.py --base <batch-start-sha>` gives an advisory plan.
-- Head reviews risk: docs-only = preflight; isolated C# = filtered Unity tests;
-  shared interfaces/physics/scene/prefab/packages/settings = full EditMode + PlayMode.
-- No local Unity/Gradle builds unless the user explicitly changes this policy.
-- User runs Unity Android workflow, manually, once the batch is ready.
-- No push/PR/schedule trigger; no automatic CI dispatch or polling loop.
-- Read the failing log before fixing. One focused fix, then hand off for human rerun.
-  Same failure twice: STOP, report cause/evidence/options. No blind retry loop.
-- Not run is NOT passed. Passing tests is NOT device QA. Never promise all bugs caught.
+## Branches and merge
+Workers create Captain-assigned work/agent-a/<task>, work/agent-b/<task>, or
+work/agent-c/<task> branches from the agreed baseline and push ONLY that branch.
+Never worker-push main, force-push, auto-rebase or auto-resolve conflicts.
+Handoff: branch + exact pushed SHA + files + checks/not-run + risks, at most 5 lines.
+Captain fetches named branches, reviews exact SHAs and ownership, then integrates
+serially (use integration/<batch> if useful) and merges to main after needed checks.
+If branch tips changed, review the new diff before merging. Branches reduce push
+races but do NOT guarantee no merge conflicts. Resolve shared-file conflicts explicitly.
+No automatic branch deletion, PR creation, release, secret or settings change.
 
-## Unity and Android safety
-- Pin exact Unity Editor version in ProjectSettings/ProjectVersion.txt. Confirm image
-  availability and current Android/Play requirements before first release.
-- Visible Meta Files + Force Text. Move asset with its .meta; preserve GUIDs.
-- No blind scene/prefab YAML rewrites. Use Unity Editor scripts; validate in Editor.
-- Keep runtime/editor/test assemblies separate. Add focused tests with code.
-- Never commit Library, Temp, Obj, Logs, UserSettings, builds, credentials or licenses.
-- Ask before render pipeline/input/package migrations or shared API changes.
-- Track asset origin/license in docs/ASSETS.md. No paid API/asset by default.
-- Android IL2CPP + ARM64 for store builds; explicit versionCode greater than every
-  previously uploaded code. Never generate/rotate upload keys without approval.
-- Play upload is INTERNAL ONLY, opt-in manual stage + exact confirmation string.
-  Head must not upload, dispatch CI, tag/release, or change secrets/settings.
-- Changes to workflows/settings/secrets/public publishing require explicit approval.
+## Fast checks and safety
+Cheap python3 tool/preflight.py before each commit. Captain reviews each handoff;
+no Unity/full battery per tiny task. At a useful batch boundary choose targeted tests
+for isolated changes or full EditMode/PlayMode for shared/physics/scene/settings risk.
+Unity CI stays human-dispatched; Captain reads the real run/log afterward, not a wait loop.
+No local Unity/Gradle build, automatic CI dispatch, polling, Play upload or release.
+Read failing logs before fixes. Repeated same failure: STOP and report facts/options.
+Not run is NOT passed; compilation/build is NOT visual/device/performance approval.
+Preserve .meta/GUIDs; use Editor tooling rather than blind scene YAML rewrites.
+Never commit credentials, licenses, keystores, Library/Temp/Logs/build outputs.
+Track asset origin/licensing; no paid API/asset/runner without explicit approval.
+Ask before workflows/settings/secrets, package/pipeline migrations, tags/releases,
+public repo creation or publishing. Internal upload remains manual, never production.
 
-## Done
-Focused conventional commits; changed paths and test evidence; checks not run;
-known risks; human device checklist; local SHA equals remote SHA after push.
-Say: “batch ready — Actions → Unity Android → Run workflow”. Do not wait on CI.
+## Captain reply after worker handoff
+At most 3–5 Bengali lines: received/reviewed SHA, checks actually run, blocker or
+next action. If another task is needed, one short block for the affected agent only.
+No repeated three-agent plan unless starting a new batch. Keep owner notes intact.
 <!-- unity-agent-kit:end -->
+
 
 ## Project owner's notes
 <!-- Keep all owner notes here; installer never replaces them. -->
 
 ### Cat Dash project decisions
-- Owner authorized this public starter repository for testing the Head-agent workflow.
-- Read docs/GAME_BRIEF.md and HEAD_HANDOFF_BN.md before assigning implementation.
+- Owner authorized this public starter repository for testing the Captain-agent workflow.
+- Read docs/GAME_BRIEF.md and CAPTAIN_HANDOFF_BN.md before assigning implementation.
 - Current repository is a scaffold, NOT a playable cat runner. Do not call it completed.
 - docs/art/cat-dash-visual-target.png is AI concept art, NOT a game-ready 3D model
   or real gameplay screenshot. Produce and validate actual assets in implementation.
@@ -76,6 +72,6 @@ Say: “batch ready — Actions → Unity Android → Run workflow”. Do not wa
 ### Visual quality requirement
 - Actual gameplay should closely match docs/art/cat-dash-visual-target.png. Read the
   Visual acceptance gate in docs/GAME_BRIEF.md; graybox is not final visual delivery.
-- Head must include this gate in Content/QA briefs. Use genuine candidate-SHA captures,
+- Captain must include this gate in Agent B/Agent C briefs. Use genuine candidate-SHA captures,
   not AI mockups, for comparison. Owner approves the actual look; absent captures or
   profiling must be labelled unverified. No pixel-perfect/performance guarantees.
