@@ -106,6 +106,16 @@ a frozen member. Implementations live in the owning agent's files.
 
 ## Known risks carried into the batch
 
+### 2026-10-16 — CD-B1-B1 reviewed, **held at review (not merged)**
+Branch `work/agent-b/cd-b1-cat-props`, tip `f6675d7d6127eb1d9026d45279935d4cef116b85`, cut from the older baseline `e6904bb`.
+Verified clean on structure: one commit, paths only inside `Assets/Art/**`, `tool/blender_*.py`, `docs/ASSETS.md` (no scene, no gameplay,
+no shared batch doc), `python3 tool/preflight.py` = 0 errors on the branch tip, `git merge-tree` against `main` reports **no conflicts**,
+new assemblies `CatDash.Art` / `CatDash.Art.Tests.EditMode` are self-contained (Art asmdef `references: []`, tests reference only Art +
+TestRunner). Meshes/textures committed: `Cat.fbx`, `Prop_{Crate,Barrier,Pot}.fbx`, `Road_Segment.fbx`, five PNGs (1024²/512²) with `.meta`.
+Held because the owner rejected the cat look; redo requested on the same branch against new reference sheets
+(`cat-run-pose-sheet.png`, `props-road-sheet.png`, `cat-v2-stylized-3d-render.png`, `cat-v2-run-cycle-sheet.png`).
+Unity import/scale/material verification and the whole visual gate remain **NOT RUN** — only owner-captured Unity footage can clear it.
+
 ### 2026-10-16 — CD-B1-A5 reviewed, merged with one Captain line-level correction
 Branch `work/agent-a/cd-b1-resume-isolation`, tip `ad5f9046e45c1eac119a8fe6dbc8f1853b5401ac`, cut from `ae8465f` (main tip —
 correct baseline). Resume fix is right on both `OnApplicationPause` and `OnApplicationFocus`; `RunController.paused` is already
