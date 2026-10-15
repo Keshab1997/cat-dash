@@ -106,6 +106,22 @@ a frozen member. Implementations live in the owning agent's files.
 
 ## Known risks carried into the batch
 
+### 2026-10-16 — first CI run (owner-dispatched, run 38800771749) RED: pipeline bug, not worker code
+`head_sha` `166b9c96d3cbd6bbaafc015400e7f09cd177f9ee`, job `batch` failed after 56s. Step facts from the jobs API:
+`Cheap source preflight` success, `Fail fast — inputs and required secrets` success (so the three UNITY_* secrets are present),
+`Restore Unity Library` success, **`Unity batch tests` failure in 3s**, `Keep test evidence even on failure` success but with
+"No files were found with the provided path: artifacts/tests" → the game-ci CLI never reached the Editor, so **no test of any
+worker ran; everything stays NOT RUN**. Owner-pasted line: `[WARN] Unknown argument: noCoverageEnabled` immediately before
+`Error: Test run failed with exit code 1`. Cause (highest-confidence): the workflow passes `coverageEnabled: false`
+(unity-android.yml:91) to the pinned `game-ci/unity-test-runner@32e5771` — a fork whose action.yml adds that input ("Set to false
+to omit -enableCodeCoverage/-coverageOptions/-coverageResultsPath … see #302/#306/#301") — and it forwards `--no-coverageEnabled`
+to `game-ci` CLI v0.1.72, which does not accept that flag; the CLI's yargs is configured `.strict(true)`
+(game-ci/cli `src/cli.ts`, comment at ~line 269 documents that strict mode makes unknown args fatal), so the invocation exits 1
+before launching Unity. Not verified beyond that without the raw log lines above the `game-ci test` command — the job-log API is
+rejected for this app (`401 Server failed to authenticate the request`) and `/actions/runs/.../artifacts` is empty.
+Fix is a workflow/settings change (patch or unpin the action, or stop passing the input) → **Captain will not touch it without owner approval**;
+`unity-kit.lock.json` also hashes that workflow, so it needs a re-pin.
+
 ### 2026-10-16 — CD-B1-A6 + A7 reviewed and MERGED (`e158334381f12aba5ce5eeb26fe640be96fe12c9`)
 A7 (`49ae8bfdf29960aba9491d581db0155184c91f38`, one commit, only `RunInputTests.cs`, +6 lines) pairs every driver:
 `input.OnApplicationPause(x)` is always followed by `rc.OnApplicationPause(x)` and the same for focus, so `rc.paused` is what
