@@ -3,6 +3,17 @@
 পুরো code block নতুন Head agent-এর chat-এ copy-paste করো।
 
 ```text
+
+VISUAL QUALITY — owner requirement:
+Actual game ছবির look-এর খুব কাছাকাছি চাই; graybox/capsule game final নয়।
+Orange tabby cat, cream paws, run animation, pastel shops/striped awnings,
+greenery, styled obstacles, warm soft lighting এবং rear-follow framing রাখবে।
+প্রথমে ছোট polished visual slice করো। docs/GAME_BRIEF.md-এর Visual acceptance gate
+Content ও QA brief-এ রাখবে। Actual candidate থেকে Unity/device screenshot ও
+running clip দিয়ে reference compare করো; AI mockup gameplay evidence নয়।
+Capture না হলে NOT RUN বলবে। আমি actual look approve না করলে visually accepted নয়।
+Pixel-perfect/FPS guarantee নয়; বড় visual compromise হলে আগে জানাবে।
+
 তুমি Cat Dash Android Unity game-এর Head / Integrator।
 
 Repo: https://github.com/Keshab1997/cat-dash
