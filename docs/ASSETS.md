@@ -1,11 +1,99 @@
 # Asset register
-| Path | Creator/source | License/permission | Generated how | Budget/cleanup | Verified in Unity |
-|---|---|---|---|---|---|
 
-Record external dependencies too. No unlicensed placeholder ships to Play.
-
-| docs/art/cat-dash-visual-target.png | AI-generated for this project | Provider terms apply; no third-party franchise reference requested | Text-to-image concept | Reference only, not bundled in Assets | Not a mesh / not gameplay |
+| Path | Reference | Creator/source | License/permission | Generated how | Budget/cleanup | Verified in Unity |
+|---|---|---|---|---|---|---|
+| docs/art/cat-dash-visual-target.png | — (superseded) | AI-generated for this project | Provider terms apply; no third-party franchise reference requested | Text-to-image concept | Reference only, not bundled in Assets | Not a mesh / not gameplay |
+| docs/art/refs/cat-v2-stylized-3d-render.png | — (this IS a reference) | AI-generated, published by Captain / owner-approved look | Provider terms apply; no third-party franchise reference requested | Text-to-image hero render | Look source for Cat.fbx; not bundled in Assets | Not a mesh / not gameplay |
+| docs/art/refs/cat-v2-run-cycle-sheet.png | — (this IS a reference) | AI-generated, published by Captain / owner-approved look | Provider terms apply | Text-to-image pose sheet | Look source for the Run poses; not bundled | Not a mesh / not gameplay |
+| docs/art/refs/props-road-sheet.png | — (this IS a reference) | AI-generated, published by Captain / owner-approved look | Provider terms apply | Text-to-image prop/road sheet | Look source for props + road; not bundled | Not a mesh / not gameplay |
 
 Content worker must register every actual 3D mesh, material, texture and animation
 with provenance and mobile budgets before shipping. Concept generation alone does
 not establish legal clearance for every jurisdiction or platform.
+
+**"Reference" means look only.** Every mesh below is original procedural geometry: all
+vertices, polygons and UVs are written by the generators in `tool/`, and every texture
+is painted pixel-by-pixel by those same scripts. No AI image is ever used as a mesh, a
+texture map, or a source of geometry — the sheets are compared against, never sampled.
+
+## Generated meshes (Agent B, batch CD-B1)
+
+| Path | Reference | Creator/source | License/permission | Generated how | Budget/cleanup | Verified in Unity |
+|---|---|---|---|---|---|---|
+| Assets/Art/Generated/Cat.fbx | docs/art/refs/cat-v2-stylized-3d-render.png (look), docs/art/refs/cat-v2-run-cycle-sheet.png (poses) | Original procedural, Agent B (`tool/blender_cat.py`) | Own work, repo license | Blender 4.5.14 LTS; explicit verts/faces/UVs; 13 islands on joint pivots | 1846 tris (cap 4000), 1 material, 1024² atlas, 0.24 × 0.75 × 0.67 m | Import/budget/material asserted by `CatDash.Art.Tests.EditMode`; **owner capture pending** |
+| Assets/Art/Generated/Prop_Crate.fbx | docs/art/refs/props-road-sheet.png | Original procedural, Agent B (`tool/blender_propset.py --asset crate`) | Own work, repo license | Chamfered octagonal prism + corner posts; teal band on every face | 112 tris (cap 800), 1 material, 512² atlas, 0.80 m cube | Same test assembly; **owner capture pending** |
+| Assets/Art/Generated/Prop_Barrier.fbx | docs/art/refs/props-road-sheet.png | Original procedural, Agent B (`tool/blender_propset.py --asset barrier`) | Own work, repo license | Cream board with orange hazard stripes on a splayed wooden trestle | 72 tris (cap 800), 1 material, 512² atlas, 1.60 × 0.35 × 0.92 m | Same test assembly; **owner capture pending** |
+| Assets/Art/Generated/Prop_Pot.fbx | docs/art/refs/props-road-sheet.png | Original procedural, Agent B (`tool/blender_propset.py --asset pot`) | Own work, repo license | Tapered terracotta planter, soil disc, 5 stems with rounded leaves | 564 tris (cap 800), 1 material, 512² atlas, 0.60 × 0.60 × 0.73 m | Same test assembly; **owner capture pending** |
+| Assets/Art/Generated/Road_Segment.fbx | docs/art/refs/props-road-sheet.png | Original procedural, Agent B (`tool/blender_road.py`) | Own work, repo license | 12 m tileable slab: 5.4 m asphalt, 1.2 m paving sidewalks, 0.15 m curb, top-planar UVs | 36 tris (cap 3000), 1 material, 1024² atlas, tile step 12 m | Same test assembly; **owner capture pending** |
+| Assets/Art/Generated/Textures/*.png | (same sheets as the mesh each one serves) | Original procedural, Agent B (painted in the generators) | Own work, repo license | Deterministic pixel painting: mackerel stripes, mouse blaze, teal iris, hazard stripes, paving | 8-bit sRGB, ≤ 1024², no HDR/unlit | Same test assembly |
+
+### What the look references fixed (CD-B1 redo)
+
+The first cat was rejected for reading as a chubby cartoon. The redo moved to the
+reference's real-kitten proportions and markings, and these are the flags the meshes
+now carry (also emitted in each generator's `REPORT_JSON`):
+
+- **Cat** — long tail curving up with a cream tip; dense mackerel stripe rings over a
+  golden coat; white chest/belly and cream paw socks; a cream "mouse" blaze with ears,
+  eye and tail outlined on the upper back (straddling the spine); pink inner ears with
+  cream fluff rims; pink nose; large teal irises with a dark rim and a white catchlight.
+- **Crate** — teal band around every face, light chamfer bands, plank grooves; the
+  earlier white X-brace is gone (the sheet's crate has no brace).
+- **Barrier** — cream board with orange diagonal stripes on a splayed wooden trestle
+  with a cross bar; the earlier teal/grey metal version is gone.
+- **Pot** — terracotta planter with a pale band, dark soil and five stems carrying
+  rounded leaves (was six stiff blades).
+- **Road** — darker asphalt with cream dashed lane paint, cream paving sidewalks and
+  cream curbs (was grey/noisy paving).
+
+### Notes for integrators
+
+- **Pivots.** Cat and props rest on the authored ground plane (`y = 0`); the road
+  segment's pivot *is* its driving surface and its 0.30 m slab hangs below so the
+  tile has no visible underside at the join. Verified numerically by
+  `tool/blender_verify_assets.py` (Blender import check, not a Unity check).
+- **Facing.** Exported with `axis_forward='-Z', axis_up='Y'`: the cat faces Unity
+  +Z, the road runs along Unity Z, the barrier board faces Unity +Z.
+- **Obstacles.** `Prop_Crate` / `Prop_Barrier` / `Prop_Pot` deliberately contain no
+  prefab and no collider component: Agent C attaches `ObstacleMarker` plus a trigger
+  `Collider` when building the scene (frozen contact point in `docs/batches/CD-B1.md`).
+  Suggested box colliders are in the generator's `REPORT_JSON` output.
+- **Materials.** Each FBX carries one material and a relative texture reference
+  (`Textures/<Name>.png`), imported with material description import enabled. If a
+  material ever loses its texture, `GeneratedModels_UseOneMaterialEachAndCarryATexture`
+  fails and the fix is a one-line import setting, not a re-export.
+- **Budget check.** `python3 tool/preflight.py` covers repository hygiene;
+  `blender --background --python tool/blender_verify_assets.py` re-imports the FBXs
+  and checks tri budgets, single material, UV survival and pivot heights;
+  `CatDash.Art.Tests.EditMode` re-checks budgets, materials, textures, the atlas
+  contract and the run-cycle pose order inside Unity (runs in CI's `full` stage).
+
+### Known limitations (stated, not hidden)
+
+- The cat is a stylised approximation of the hero render, not a match of its fur:
+  fur groom, whiskers as geometry, and sub-surface fuzz are out of scope for a
+  low-poly mobile asset. Markings are painted at ~1024², so a close-up camera will
+  show flat colour where the reference shows individual hairs.
+- There is no animation yet (skinning is explicitly out of scope this batch). The
+  four poses of `cat-v2-run-cycle-sheet.png` are recorded as the contract in
+  `Assets/Art/RunCycleSpec.cs` (`RunPose` order contact → down → up → air).
+- **Visual gate: NOT RUN.** Only an owner-captured Unity screenshot/clip from the
+  reviewed candidate SHA can clear it (docs/GAME_BRIEF.md, "Visual acceptance gate").
+
+### Regenerating
+
+Blender is not installed by CI and is never required to build the project; the FBXs
+are committed. To regenerate after a palette or proportion change:
+
+```bash
+blender --background --python tool/blender_cat.py     -- --output Assets/Art/Generated/Cat.fbx
+blender --background --python tool/blender_propset.py -- --asset crate   --output Assets/Art/Generated/Prop_Crate.fbx
+blender --background --python tool/blender_propset.py -- --asset barrier --output Assets/Art/Generated/Prop_Barrier.fbx
+blender --background --python tool/blender_propset.py -- --asset pot     --output Assets/Art/Generated/Prop_Pot.fbx
+blender --background --python tool/blender_road.py    -- --output Assets/Art/Generated/Road_Segment.fbx
+blender --background --python tool/blender_verify_assets.py
+```
+
+Generators refuse to overwrite an existing FBX (delete it first if intended) and
+re-emit the `.meta` files with deterministic GUIDs derived from the asset path, so a
+regeneration never renumbers GUIDs or disturbs scene references.

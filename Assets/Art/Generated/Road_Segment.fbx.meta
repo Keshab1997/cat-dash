@@ -1,0 +1,55 @@
+fileFormatVersion: 2
+guid: fd1d0c1db6fd923f61cc0c82a68fe2d1
+ModelImporter:
+  serializedVersion: 22200
+  internalIDToNameTable: []
+  materials:
+    materialImportMode: 2
+    materialName: 0
+    materialSearch: 0
+    materialLocation: 1
+  animations:
+    legacyGenerateAnimations: 4
+    bakeSimulation: 0
+    optimizeGameObjects: 0
+    animationCompression: 1
+    animationPositionError: 0.5
+    animationRotationError: 0.5
+    animationScaleError: 0.5
+  importAnimation: 0
+  importBlendShapeDeformPercent: 0
+  importBlendShapes: 0
+  importCameras: 0
+  importLights: 0
+  importVisibility: 0
+  importConstraints: 0
+  importNormals: 0
+  importTangents: 0
+  importAnimatedCustomProperties: 0
+  importMaterials: 1
+  importSkeleton: 0
+  addCollider: 0
+  meshCompression: 0
+  isReadable: 0
+  optimizeMeshPolygons: 1
+  optimizeMeshVertices: 1
+  weldVertices: 1
+  keepQuads: 0
+  swapUVChannels: 0
+  generateSecondaryUV: 0
+  useFileScale: 1
+  fileScale: 1
+  globalScale: 1
+  useFileUnits: 1
+  bakeAxisConversion: 0
+  meshOptimizationFlags: -1
+  skinWeights: 4
+  maxBonesPerVertex: 4
+  minBoneWeight: 0.001
+  optimizeBones: 1
+  meshSmoothingAngle: 60
+  appendAnchor: 0
+  externalObjects: {}
+  userData:
+  assetBundleName:
+  assetBundleVariant:
