@@ -1,5 +1,6 @@
 using NUnit.Framework;
 using UnityEngine;
+using System.Reflection;
 using CatDash.Gameplay;
 
 public class RearFollowCameraTests
@@ -45,5 +46,17 @@ public class RearFollowCameraTests
     {
         Quaternion q = cam.ComputeDesiredRotation(new Vector3(0f, 0f, 0f));
         Assert.IsFalse(float.IsNaN(q.x) || float.IsNaN(q.y) || float.IsNaN(q.z) || float.IsNaN(q.w));
+    }
+
+    [Test]
+    public void ComputeDesiredPosition_ClampsLowOffsetY()
+    {
+        var f = typeof(RearFollowCamera).GetField("offset", BindingFlags.NonPublic | BindingFlags.Instance);
+        Vector3 off = (Vector3)f.GetValue(cam);
+        off.y = 0.5f;
+        f.SetValue(cam, off);
+        Vector3 target = new Vector3(1f, 2f, 3f);
+        Vector3 pos = cam.ComputeDesiredPosition(target);
+        Assert.AreEqual(target.y + 2.2f, pos.y, 0.001f);
     }
 }

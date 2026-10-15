@@ -11,6 +11,7 @@ public class RunControllerTests
     [SetUp]
     public void SetUp()
     {
+        RunController.ResetStatics();
         go = new GameObject("RunControllerTests");
         rc = go.AddComponent<RunController>();
     }
@@ -19,6 +20,7 @@ public class RunControllerTests
     public void TearDown()
     {
         if (go != null) UnityEngine.Object.DestroyImmediate(go);
+        RunController.ResetStatics();
     }
 
     [Test]

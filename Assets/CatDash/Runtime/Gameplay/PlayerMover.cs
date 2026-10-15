@@ -15,10 +15,7 @@ namespace CatDash.Gameplay
         /// <summary>+1 right, -1 left; ignored at the outer lanes.</summary>
         public void Step(int direction)
         {
-            int idx = (int)currentLane + direction;
-            if (idx < 0) idx = 0;
-            if (idx > Lanes.Count - 1) idx = Lanes.Count - 1;
-            currentLane = (Lane)idx;
+            currentLane = Lanes.Clamp((Lane)((int)currentLane + direction));
         }
 
         public void MoveToLane(Lane lane)
@@ -45,12 +42,6 @@ namespace CatDash.Gameplay
             return distanceMeters;
         }
 
-        /// <summary>Lower-case alias kept for callers/tests using the helper name from the brief.</summary>
-        public float playerZForDistance(float distanceMeters)
-        {
-            return PlayerZForDistance(distanceMeters);
-        }
-
         private void Update()
         {
             if (controller == null) return;
@@ -65,14 +56,26 @@ namespace CatDash.Gameplay
             transform.position = pos;
         }
 
-        public void OnTriggerStay(Collider other)
+        /// <summary>Test seam: central obstacle-contact handling.</summary>
+        public void HandleObstacleContact(Collider other)
         {
-            if (other == null) return;
             if (controller == null) return;
+            if (!controller.IsRunning) return;
+            if (other == null) return;
             if (other.GetComponent<ObstacleMarker>() != null)
             {
                 controller.EndRun();
             }
+        }
+
+        private void OnTriggerEnter(Collider other)
+        {
+            HandleObstacleContact(other);
+        }
+
+        private void OnTriggerStay(Collider other)
+        {
+            HandleObstacleContact(other);
         }
     }
 }
