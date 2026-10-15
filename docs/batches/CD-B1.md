@@ -106,6 +106,20 @@ a frozen member. Implementations live in the owning agent's files.
 
 ## Known risks carried into the batch
 
+### 2026-10-16 — A9 and B2 reviewed and MERGED: main `5f4a5e62d4d6766a45014b4901a7d9387104db79`
+- A9 `f0b15f1cc14467f990dbb2449c32a4bf22a50ad2` (one line, `Debug.Log` → `UnityEngine.Debug.Log`; branch still based on `4e115ba`,
+  C2's content preserved by merge, `merge-tree` no conflicts). My own review miss is recorded in the previous section — the fix is exactly
+  the qualified call, no assertion touched.
+- B2 `51d72c81d4c1c962cbe6d952ff6f42f3487e0b00` from main tip: `minColorComponent` replaced by real per-channel 0..1 assertions plus a
+  direct channel compare against `Color.magenta` (comment names both traps: missing member and NUnit's ambiguous Color overload);
+  the rejected cat look is rebuilt too (`Cat.fbx` 85.5→86.2 KB, 1870 tris ≤ 4000, dims updated), and B documented why FBX metas set
+  `isReadable: 1` — a non-readable mesh returns an EMPTY triangles array, so budget asserts could pass at zero; the test asserts non-zero count.
+  That is the right kind of paranoia about silent passes.
+- Captain scan for the same compile class across `Assets/**/*.cs`: only two files pair `System*` with bare `Debug.`; one is fixed, the other is
+  kit-managed `Assets/UnityAgentKit/Editor/KitBuild.cs` which imports only `UnityEngine` (no collision). Unity compile is still the real judge.
+Ready for owner re-run: expect both previously-failing assemblies to compile; then EditMode 76 tests (1 `[Explicit]` skip) and PlayMode 3.
+Visual gate still NOT RUN — the new `Cat.fbx` needs the owner's real Unity capture before the look counts as accepted.
+
 ### 2026-10-16 — THIRD CI run (13e370c): zero tests executed — two compile errors, one was already on main
 Pipeline itself is healthy now (license entitlement returned, `6000.3.3f1` Editor booted, all 6 assemblies evaluated).
 `*** Tundra build failed` / `Scripts have compiler errors.` → no results XML, so `Require real, nonempty passing Unity results`
