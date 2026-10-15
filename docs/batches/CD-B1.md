@@ -106,6 +106,19 @@ a frozen member. Implementations live in the owning agent's files.
 
 ## Known risks carried into the batch
 
+### 2026-10-16 — THIRD CI run (13e370c): zero tests executed — two compile errors, one was already on main
+Pipeline itself is healthy now (license entitlement returned, `6000.3.3f1` Editor booted, all 6 assemblies evaluated).
+`*** Tundra build failed` / `Scripts have compiler errors.` → no results XML, so `Require real, nonempty passing Unity results`
+correctly refused (artifact `unity-test-evidence-38804627764-1` has 3 logs and 0 XMLs). Exactly two errors:
+1. `Assets/CatDash/Tests/PlayMode/RearFollowCameraFollowTests.cs:29 CS0104: 'Debug' is an ambiguous reference between
+   'UnityEngine.Debug' and 'System.Diagnostics.Debug'` — **introduced by A8**, which added `using System.Diagnostics;` for the
+   Stopwatch and then called bare `Debug.Log`. My A8 review read the diff and confirmed the `Debug.Log` line but did not notice the
+   name collision with `using UnityEngine;` — that is on me, not on A.
+2. `Assets/Art/Tests/EditMode/ArtContractTests.cs:117 CS1061: 'Color' does not contain a definition for 'minColorComponent'` —
+   `minColorComponent` genuinely does not exist on `UnityEngine.Color`. This is **B's merged-but-never-compiled test**, i.e. the
+   class of bug the "NOT RUN" label was protecting against; it only surfaced once CI actually compiled the Art test assembly.
+Both are one-line fixes, no behaviour involved; batch stays un-verified until the next owner run.
+
 ### 2026-10-16 — CD-B1-A8 and CD-B1-C2 reviewed and MERGED (batch is ready for a re-run)
 Both cut from `c53f13b` (= main tip at dispatch), zero file overlap, `--no-ff`, no conflicts; preflight 0 errors on each tip and on merged main.
 - **A8** `4e115ba7069696bdadf2eaef2f53fe83aa0b7368`: `Active` now bound in `Awake` (the lifecycle Unity actually guarantees for the
