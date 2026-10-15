@@ -72,7 +72,10 @@ namespace CatDash.Gameplay
 
         private void Update()
         {
-            TryRegister();
+            if (registeredController == null || registeredController != RunController.Active)
+            {
+                TryRegister();
+            }
 
             if (!inputEnabled) return;
 

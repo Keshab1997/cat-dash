@@ -104,4 +104,30 @@ public class RunInputTests
         input.OnApplicationFocus(true);
         Assert.IsTrue(input.InputEnabled);
     }
+
+    [Test]
+    public void FocusPauseInterleaving_WhenRunning_ResumesInputAndFreezesDistance()
+    {
+        rc.BeginRun();
+        float before = rc.DistanceMeters;
+        input.OnApplicationFocus(false);
+        input.OnApplicationPause(true);
+        rc.Tick(0.5f);
+        Assert.AreEqual(before, rc.DistanceMeters, 0.001f);
+        input.OnApplicationPause(false);
+        input.OnApplicationFocus(true);
+        Assert.IsTrue(input.InputEnabled);
+    }
+
+    [Test]
+    public void FocusPauseInterleaving_AfterGameOver_StaysDisabled()
+    {
+        rc.BeginRun();
+        rc.EndRun();
+        input.OnApplicationFocus(false);
+        input.OnApplicationPause(true);
+        input.OnApplicationPause(false);
+        input.OnApplicationFocus(true);
+        Assert.IsFalse(input.InputEnabled);
+    }
 }
