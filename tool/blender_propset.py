@@ -26,15 +26,15 @@ import blender_artlib as art  # noqa: E402
 # --------------------------------------------------------------------------- #
 # Palette (mirrors Assets/Art/PaletteSpec.cs)
 # --------------------------------------------------------------------------- #
-WOOD = art.srgb("#B87E4C")
-WOOD_DARK = art.srgb("#94562A")
-WOOD_LIGHT = art.srgb("#D9A96C")
-WOOD_FRAME_RGB = art.srgb("#F3EBD9")
-METAL = art.srgb("#4A4E57")
-METAL_LIGHT = art.srgb("#6E7480")
-BARRIER_RED = art.srgb("#E4764A")
-BARRIER_TEAL = art.srgb("#57BFB4")
-BARRIER_WHITE = art.srgb("#F7EEDD")
+WOOD = art.srgb("#D9A96C")
+WOOD_DARK = art.srgb("#A9763C")
+WOOD_LIGHT = art.srgb("#E7BE86")
+WOOD_FRAME_RGB = art.srgb("#E4CBA0")
+METAL = art.srgb("#8A6A44")
+METAL_LIGHT = art.srgb("#B08B5C")
+BARRIER_ORANGE = art.srgb("#EE9A4E")
+BARRIER_CREAM = art.srgb("#F6E7C4")
+CRATE_TEAL = art.srgb("#3FA79B")
 TERRACOTTA = art.srgb("#C4623C")
 TERRACOTTA_DARK = art.srgb("#9E4A2B")
 SOIL = art.srgb("#4A3524")
@@ -118,11 +118,16 @@ def paint_crate(canvas: art.Canvas) -> None:
                          u0 + (u1 - u0) * (groove + 0.004), v1, WOOD_DARK, 0.85)
         su0, su1 = u0 + (u1 - u0) * start, u0 + (u1 - u0) * u
         canvas.speckle(su0, v0, su1, v1, WOOD_LIGHT, count=10, radius=0.004, alpha=0.35)
-        # pale frame along the top and bottom of the side, plus the X brace
-        canvas.fill(su0, v1 - 0.042, su1, v1 - 0.030, WOOD_FRAME_RGB)
-        canvas.fill(su0, v0 + 0.030, su1, v0 + 0.042, WOOD_FRAME_RGB)
-        canvas.segment(su0 + 0.012, v0 + 0.042, su1 - 0.012, v1 - 0.042, WOOD_FRAME_RGB, 0.010)
-        canvas.segment(su0 + 0.012, v1 - 0.042, su1 - 0.012, v0 + 0.042, WOOD_FRAME_RGB, 0.010)
+        # light chamfer bands top and bottom, as on the reference crate
+        canvas.fill(su0, v1 - 0.036, su1, v1 - 0.026, WOOD_FRAME_RGB)
+        canvas.fill(su0, v0 + 0.026, su1, v0 + 0.036, WOOD_FRAME_RGB)
+    # teal band around the middle of every flat side (props-road-sheet.png)
+    band_v0, band_v1 = v0 + (v1 - v0) * 0.44, v0 + (v1 - v0) * 0.58
+    canvas.fill(u0, band_v0, u1, band_v1, CRATE_TEAL)
+    canvas.blend(u0, band_v0, u1, band_v0 + 0.012, WOOD_DARK, 0.45)
+    canvas.blend(u0, band_v1 - 0.012, u1, band_v1, WOOD_DARK, 0.45)
+    canvas.grain_tiled(u0, band_v0, u1, band_v1, amount=0.06, block=64)
+
     cu0, cv0, cu1, cv1 = R_WOOD_CAP
     canvas.fill(cu0, cv0, cu1, cv1, WOOD)
     canvas.grain(cu0, cv0, cu1, cv1, amount=0.10, cells=70)
@@ -145,23 +150,37 @@ BARRIER_POST = 0.09
 
 
 def build_barrier():
-    post_x = BARRIER_WIDTH * 0.5 - BARRIER_POST * 0.5 - 0.055
-    board_h = 0.26
+    """Wooden trestle barrier: striped board on two splayed A-frame legs with a
+    cross bar, matching props-road-sheet.png (the teal/grey metal version is gone)."""
+    post_x = BARRIER_WIDTH * 0.5 - 0.20
+    board_h = 0.28
     board_z = BARRIER_HEIGHT - board_h * 0.5
+    leg_angle = 0.20  # radians of splay, front/back, so the trestle stands on its own
+    leg_length = BARRIER_HEIGHT + 0.02
     parts = [
-        art.box((BARRIER_WIDTH, 0.06, board_h), (0.0, 0.0, board_z),
+        art.box((BARRIER_WIDTH, 0.055, board_h), (0.0, 0.0, board_z),
                 faces_uv=[R_BARRIER_EDGE, R_BARRIER_EDGE, R_BARRIER_STRIPES,
                           R_BARRIER_STRIPES, R_BARRIER_EDGE, R_BARRIER_EDGE]),
-        art.box((BARRIER_POST, BARRIER_POST, BARRIER_HEIGHT),
-                (-post_x, 0.0, BARRIER_HEIGHT * 0.5), uv=R_METAL),
-        art.box((BARRIER_POST, BARRIER_POST, BARRIER_HEIGHT),
-                (post_x, 0.0, BARRIER_HEIGHT * 0.5), uv=R_METAL),
-        art.box((0.24, BARRIER_DEPTH, 0.08), (-post_x, 0.0, 0.04), uv=R_METAL),
-        art.box((0.24, BARRIER_DEPTH, 0.08), (post_x, 0.0, 0.04), uv=R_METAL),
-        # cream cap on top of each post, like the target's little finials
-        art.box((0.11, 0.11, 0.05), (-post_x, 0.0, BARRIER_HEIGHT + 0.025), uv=R_METAL),
-        art.box((0.11, 0.11, 0.05), (post_x, 0.0, BARRIER_HEIGHT + 0.025), uv=R_METAL),
+        # cross bar between the two trestles
+        art.box((BARRIER_WIDTH - 0.28, 0.075, 0.075), (0.0, 0.0, BARRIER_HEIGHT * 0.42),
+                uv=R_METAL),
     ]
+    # Splayed legs: rotating a box about X tilts its flat sole, so lift it by the
+    # resulting dip (half thickness * sin splay) to keep the feet exactly on y = 0.
+    leg_thickness = 0.075
+    sole_lift = leg_thickness * 0.5 * math.sin(leg_angle)
+    for side in (-1, 1):
+        for splay in (-1, 1):
+            leg = art.box((leg_thickness, leg_thickness, leg_length),
+                          (side * post_x, 0.0, leg_length * 0.5), uv=R_METAL)
+            parts.append(leg.transformed(offset=(0.0, splay * 0.045, sole_lift),
+                                         rot_x=splay * leg_angle))
+    return art.combine(parts), {
+        "size_m": [BARRIER_WIDTH, BARRIER_DEPTH, BARRIER_HEIGHT],
+        "collider": {"type": "BoxCollider", "size": [BARRIER_WIDTH, 0.90, BARRIER_DEPTH],
+                     "center": [0.0, 0.45, 0.0]},
+        "note": "obstacle: ObstacleMarker + isTrigger collider placed by Agent C"}
+
     return art.combine(parts), {
         "size_m": [BARRIER_WIDTH, BARRIER_DEPTH, BARRIER_HEIGHT],
         "collider": {"type": "BoxCollider", "size": [BARRIER_WIDTH, 0.90, BARRIER_DEPTH],
@@ -170,19 +189,19 @@ def build_barrier():
 
 
 def paint_barrier(canvas: art.Canvas) -> None:
+    """Orange-on-cream hazard stripes on the board, wood grain on the trestle legs."""
     u0, v0, u1, v1 = R_BARRIER_STRIPES
-    canvas.fill(u0, v0, u1, v1, BARRIER_WHITE)
-    canvas.diagonal_stripes(u0, v0, u1, v1, BARRIER_RED, BARRIER_TEAL, period=0.115, slope=0.55)
-    canvas.grain(u0, v0, u1, v1, amount=0.05, cells=50)
-    canvas.grain(u0, v0, u1, v1, amount=0.06, cells=60)
-    canvas.blend(u0, v0, u1, v0 + 0.03, METAL, 0.25)
+    canvas.fill(u0, v0, u1, v1, BARRIER_CREAM)
+    canvas.diagonal_stripes(u0, v0, u1, v1, BARRIER_ORANGE, BARRIER_CREAM,
+                            period=0.125, slope=0.55)
+    canvas.grain_tiled(u0, v0, u1, v1, amount=0.05, block=64)
+    canvas.blend(u0, v0, u1, v0 + 0.025, WOOD_DARK, 0.25)
     eu0, ev0, eu1, ev1 = R_BARRIER_EDGE
-    canvas.fill(eu0, ev0, eu1, ev1, BARRIER_WHITE)
-    canvas.grain(eu0, ev0, eu1, ev1, amount=0.07, cells=40)
+    canvas.fill(eu0, ev0, eu1, ev1, BARRIER_CREAM)
+    canvas.grain_tiled(eu0, ev0, eu1, ev1, amount=0.07, block=64)
     mu0, mv0, mu1, mv1 = R_METAL
-    canvas.vgrad(mu0, mv0, mu1, mv1, BARRIER_WHITE, art.srgb("#E4D9C4"))
-    canvas.grain(mu0, mv0, mu1, mv1, amount=0.06, cells=40)
-    canvas.blend(mu0, mv0, mu1, mv0 + 0.05, art.srgb("#D9CDB6"), 0.5)
+    canvas.vgrad(mu0, mv0, mu1, mv1, WOOD_DARK, WOOD)
+    canvas.grain_tiled(mu0, mv0, mu1, mv1, amount=0.08, block=64)
 
 
 # --------------------------------------------------------------------------- #
@@ -212,18 +231,27 @@ def build_pot():
                     R_POT_SOIL)
     parts = [wall, rim, inner, soil]
     # leaves: squashed pyramids fanning out of the soil
-    leaf_base = POT_HEIGHT - 0.07
-    for angle, height, lean in ((15, 0.20, 0.05), (75, 0.26, 0.07), (135, 0.17, 0.05),
-                                (200, 0.23, 0.06), (265, 0.19, 0.05), (320, 0.24, 0.06)):
+    # Stems with rounded leaves, as on the reference plant. Kept cheap: each stem is a
+    # 6-sided tube (24 tris) and each leaf a squashy sphere (segments 8 x rows 4).
+    leaf_base = POT_HEIGHT - 0.08
+    for angle, height, lean, size in ((10, 0.16, 0.10, 0.052), (70, 0.22, 0.12, 0.058),
+                                      (140, 0.13, 0.09, 0.046), (205, 0.19, 0.11, 0.054),
+                                      (300, 0.17, 0.10, 0.050)):
         radians = angle * math.pi / 180.0
-        base_r = 0.075
-        base_x = base_r * math.cos(radians)
-        base_y = base_r * math.sin(radians)
-        apex = ((base_r + lean) * 1.6 * math.cos(radians),
-                (base_r + lean) * 1.6 * math.sin(radians),
-                leaf_base + height)
-        parts.append(art.pyramid((base_x, base_y, leaf_base), (0.10, 0.05), apex,
-                                 R_POT_LEAF, R_POT_LEAF))
+        base_r = 0.070
+        bx, by = base_r * math.cos(radians), base_r * math.sin(radians)
+        tx = (base_r + lean) * math.cos(radians)
+        ty = (base_r + lean) * math.sin(radians)
+        tz = leaf_base + height
+        parts.append(art.tube([(bx, by, leaf_base), (tx * 0.7, ty * 0.7, leaf_base + height * 0.5),
+                               (tx, ty, tz)], [0.010, 0.008, 0.006], segments=6,
+                              u_range=(R_POT_LEAF[0], R_POT_LEAF[2]),
+                              ring_v=[R_POT_LEAF[1], R_POT_LEAF[1] + 0.5, R_POT_LEAF[3]],
+                              hint=(0.0, 1.0, 0.0)))
+        parts.append(art.sphere((tx, ty, tz + size * 0.5), (size, size * 0.78, size),
+                                segments=8, rows=4,
+                                u_range=(R_POT_LEAF[0], R_POT_LEAF[2]),
+                                v_range=(R_POT_LEAF[1], R_POT_LEAF[3])))
     return art.combine(parts), {
         "size_m": [POT_RADIUS * 2, POT_RADIUS * 2, 0.69],
         "collider": {"type": "BoxCollider", "size": [POT_RADIUS * 2, POT_HEIGHT, POT_RADIUS * 2],
@@ -270,7 +298,7 @@ ASSETS = {
               "material": "M_Prop_Crate", "colour": WOOD, "texture": "Prop_Crate_512.png",
               "roughness": 0.8},
     "barrier": {"object": "Prop_Barrier", "builder": build_barrier, "painter": paint_barrier,
-                "material": "M_Prop_Barrier", "colour": BARRIER_RED,
+                "material": "M_Prop_Barrier", "colour": BARRIER_ORANGE,
                 "texture": "Prop_Barrier_512.png", "roughness": 0.6},
     "pot": {"object": "Prop_Pot", "builder": build_pot, "painter": paint_pot,
             "material": "M_Prop_Pot", "colour": TERRACOTTA, "texture": "Prop_Pot_512.png",

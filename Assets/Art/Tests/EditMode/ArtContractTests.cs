@@ -30,12 +30,13 @@ namespace CatDash.Art.Tests
             var regions = new (string Name, Rect Rect)[]
             {
                 ("Body", PaletteSpec.CatAtlas.Body),
-                ("FurFlat", PaletteSpec.CatAtlas.FurFlat),
-                ("Cream", PaletteSpec.CatAtlas.Cream),
+                ("Head", PaletteSpec.CatAtlas.Head),
                 ("Leg", PaletteSpec.CatAtlas.Leg),
                 ("Tail", PaletteSpec.CatAtlas.Tail),
-                ("Head", PaletteSpec.CatAtlas.Head),
+                ("Ear", PaletteSpec.CatAtlas.Ear),
+                ("Eye", PaletteSpec.CatAtlas.Eye),
                 ("Muzzle", PaletteSpec.CatAtlas.Muzzle),
+                ("FurSpare", PaletteSpec.CatAtlas.FurSpare),
             };
 
             foreach (var (name, rect) in regions)
@@ -67,10 +68,36 @@ namespace CatDash.Art.Tests
         [Test]
         public void BodyRingMapping_BellyAndSpineMatchThePainter()
         {
-            Assert.AreEqual(0f, PaletteSpec.CatAtlas.BodyBellyU, 1e-5f);
-            Assert.AreEqual(0.5f, PaletteSpec.CatAtlas.BodySpineU, 1e-5f);
-            Assert.AreEqual(0f, PaletteSpec.CatAtlas.BodyTailV, 1e-5f);
-            Assert.AreEqual(0.5f, PaletteSpec.CatAtlas.BodyChestV, 1e-5f);
+            // Region-relative fractions (u = 0 belly wraps to u = 1; u = 0.5 is the spine,
+            // which is where the "mouse" blaze is painted).
+            Assert.AreEqual(0f, PaletteSpec.CatAtlas.BodyBellyAtU, 1e-5f);
+            Assert.AreEqual(0.5f, PaletteSpec.CatAtlas.BodySpineAtU, 1e-5f);
+            Assert.AreEqual(0f, PaletteSpec.CatAtlas.BodyTailAtV, 1e-5f);
+            Assert.AreEqual(1f, PaletteSpec.CatAtlas.BodyChestAtV, 1e-5f);
+        }
+
+        [Test]
+        public void RunCycleSpec_PoseOrderMatchesTheReferenceSheet()
+        {
+            // docs/art/refs/cat-v2-run-cycle-sheet.png reads left to right:
+            // contact, down, up, air. Reviewer comparisons depend on this order.
+            CollectionAssert.AreEqual(
+                new[] { RunCycleSpec.RunPose.Contact, RunCycleSpec.RunPose.Down,
+                        RunCycleSpec.RunPose.Up, RunCycleSpec.RunPose.Air },
+                RunCycleSpec.PoseOrder);
+            Assert.AreEqual(4, RunCycleSpec.PoseCount);
+            Assert.AreEqual(0, RunCycleSpec.FrameOf(RunCycleSpec.RunPose.Contact));
+            Assert.AreEqual(3, RunCycleSpec.FrameOf(RunCycleSpec.RunPose.Down));
+            Assert.AreEqual(6, RunCycleSpec.FrameOf(RunCycleSpec.RunPose.Up));
+            Assert.AreEqual(9, RunCycleSpec.FrameOf(RunCycleSpec.RunPose.Air));
+
+            float previous = -1f;
+            foreach (var pose in RunCycleSpec.PoseOrder)
+            {
+                float phase = RunCycleSpec.PhaseOf(pose);
+                Assert.Greater(phase, previous, "pose phases must increase in sheet order");
+                previous = phase;
+            }
         }
 
         [Test]
@@ -224,8 +251,9 @@ namespace CatDash.Art.Tests
             var names = cat.GetComponentsInChildren<Transform>(true).Select(t => t.name).ToArray();
             foreach (var expected in new[]
                      {
-                         "CatDash_Cat", "Body", "Neck", "Head", "Muzzle", "EarL", "EarR",
-                         "LegFrontL", "LegFrontR", "LegHindL", "LegHindR", "Tail",
+                         "CatDash_Cat", "Body", "Neck", "Head", "EyeL", "EyeR", "Muzzle",
+                         "EarL", "EarR", "LegFrontL", "LegFrontR", "LegHindL", "LegHindR",
+                         "Tail",
                      })
             {
                 CollectionAssert.Contains(names, expected,

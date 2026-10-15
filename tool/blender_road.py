@@ -30,16 +30,16 @@ import blender_artlib as art  # noqa: E402
 # --------------------------------------------------------------------------- #
 # Palette (mirrors Assets/Art/PaletteSpec.cs)
 # --------------------------------------------------------------------------- #
-ASPHALT = art.srgb("#6C6E73")
-ASPHALT_DARK = art.srgb("#5D5F63")
-ASPHALT_LIGHT = art.srgb("#7A7C80")
-LINE_WHITE = art.srgb("#EDEBE3")
-PAVING = art.srgb("#BCB2A4")
-PAVING_DARK = art.srgb("#A79C8D")
-PAVING_LIGHT = art.srgb("#C9C0B2")
-CURB = art.srgb("#CFCBC2")
-CURB_DARK = art.srgb("#A9A49A")
-GUTTER = art.srgb("#64666A")
+ASPHALT = art.srgb("#54555A")
+ASPHALT_DARK = art.srgb("#46474C")
+ASPHALT_LIGHT = art.srgb("#6A6B70")
+LINE_WHITE = art.srgb("#F2E7C9")
+PAVING = art.srgb("#E3D6B4")
+PAVING_DARK = art.srgb("#C6B693")
+PAVING_LIGHT = art.srgb("#F0E6CC")
+CURB = art.srgb("#EFE5C8")
+CURB_DARK = art.srgb("#C9BA97")
+GUTTER = art.srgb("#4E4F54")
 
 # --------------------------------------------------------------------------- #
 # Geometry: all in metres, Blender space (x across, y along, z up)

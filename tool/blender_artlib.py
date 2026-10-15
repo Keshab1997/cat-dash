@@ -331,13 +331,16 @@ class Part:
     def tri_count(self) -> int:
         return sum(len(f) - 2 for f in self.faces)
 
-    def transformed(self, offset=(0.0, 0.0, 0.0), rot_z=0.0):
+    def transformed(self, offset=(0.0, 0.0, 0.0), rot_z=0.0, rot_x=0.0):
+        """Rotate about Z then X, then translate. rot_x is what a splayed leg needs."""
         cx, cy, cz = offset
-        cos_r, sin_r = math.cos(rot_z), math.sin(rot_z)
+        cos_z, sin_z = math.cos(rot_z), math.sin(rot_z)
+        cos_x, sin_x = math.cos(rot_x), math.sin(rot_x)
         verts = []
         for x, y, z in self.verts:
-            xr, yr = x * cos_r - y * sin_r, x * sin_r + y * cos_r
-            verts.append((xr + cx, yr + cy, z + cz))
+            xr, yr = x * cos_z - y * sin_z, x * sin_z + y * cos_z
+            yr, zr = yr * cos_x - z * sin_x, yr * sin_x + z * cos_x
+            verts.append((xr + cx, yr + cy, zr + cz))
         return Part(verts, self.faces, self.face_uvs)
 
     def mirrored_x(self):

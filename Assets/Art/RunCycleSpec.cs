@@ -1,12 +1,14 @@
 namespace CatDash.Art
 {
     /// <summary>
-    /// The animation contract for the Cat Dash cat, frozen by Agent B in batch CD-B1.
+    /// The animation contract for the Cat Dash cat, frozen by Agent B in batch CD-B1 against
+    /// the owner-approved run-cycle reference
+    /// <c>docs/art/refs/cat-v2-run-cycle-sheet.png</c>.
     ///
     /// Why this file exists: the CD-B1 brief explicitly says <b>no skinning this batch</b>.
-    /// The generated mesh (<c>Assets/Art/Generated/Cat.fbx</c>) is 11 loose, closed islands
-    /// (Body, Neck, Head, Muzzle, EarL/R, LegFrontL/R, LegHindL/R, Tail) and every island
-    /// pivot sits on the joint that should drive it, so a 6-bone rigid rig can be added
+    /// The generated mesh (<c>Assets/Art/Generated/Cat.fbx</c>) is 13 loose, closed islands
+    /// (Body, Neck, Head, EyeL, EyeR, Muzzle, EarL/R, LegFrontL/R, LegHindL/R, Tail) and every
+    /// island pivot sits on the joint that should drive it, so a 6-bone rigid rig can be added
     /// later without re-topology. Until then this type states what the run cycle needs, so
     /// Agent A (movement) and Agent C (scene wiring) can build against a named contract
     /// instead of guessing, and so the eventual clip can be validated against these numbers.
@@ -28,13 +30,58 @@ namespace CatDash.Art
         /// <summary>Root motion stays OFF: PlayerMover owns forward speed, the clip is in-place.</summary>
         public const bool RootMotion = false;
 
+        // ---- Pose order (source: cat-v2-run-cycle-sheet.png, left to right) -------
+        /// <summary>
+        /// The four poses of the reference sheet and the order they appear in.
+        /// Frozen: the sheet is read left to right as contact, down, up, air, and the
+        /// clip must key them in that order so reviewers can compare pose for pose.
+        /// </summary>
+        public enum RunPose
+        {
+            Contact = 0,
+            Down = 1,
+            Up = 2,
+            Air = 3,
+        }
+
+        public const int PoseCount = 4;
+
+        /// <summary>Pose order as authored, matching the reference sheet.</summary>
+        public static readonly RunPose[] PoseOrder =
+        {
+            RunPose.Contact,
+            RunPose.Down,
+            RunPose.Up,
+            RunPose.Air,
+        };
+
+        /// <summary>
+        /// Where each pose sits in the loop, as a fraction of one cycle.
+        /// The sheet draws the poses evenly spaced, so the clip keys them at even
+        /// intervals; only the ORDER is prescribed by the sheet, not the timing feel.
+        /// </summary>
+        public static readonly float[] PosePhase = { 0.0f, 0.25f, 0.5f, 0.75f };
+
+        /// <summary>Frame each pose should be keyed on (12-frame loop, 3 frames apart).</summary>
+        public static int FrameOf(RunPose pose)
+        {
+            return (int)pose * (FrameCount / PoseCount);
+        }
+
+        /// <summary>Loop fraction of a pose (see <see cref="PosePhase"/>).</summary>
+        public static float PhaseOf(RunPose pose)
+        {
+            int index = (int)pose;
+            return index >= 0 && index < PosePhase.Length ? PosePhase[index] : 0f;
+        }
+
         // ---- Skeleton (6 bones, rigid weights) -----------------------------------
         /// <summary>Pelvis/root. Bone order is part of the contract; do not reorder.</summary>
         public static readonly string[] BoneNames =
         {
             "Root",       // at the ground between the paws, drives nothing on its own
             "Body",       // mesh islands: Body, Neck
-            "Head",       // mesh islands: Head, Muzzle, EarL, EarR
+            "Head",       // mesh islands: Head, EyeL, EyeR, Muzzle, EarL, EarR
             "FrontLegs",  // mesh islands: LegFrontL, LegFrontR (legs swing together, rigid)
             "HindLegs",   // mesh islands: LegHindL, LegHindR
             "Tail",       // mesh island: Tail
@@ -74,13 +121,13 @@ namespace CatDash.Art
         /// <summary>Exported with axis_forward='-Z', axis_up='Y': the cat faces Unity +Z.</summary>
         public const string ForwardAxis = "+Z";
 
-        /// <summary>Model is 1 m to the shoulder, 0.55 m long, pivot at the ground between the paws.</summary>
-        public const float PivotNote = "pivot at ground level, centred between the paws; y=0 is the street";
+        /// <summary>Pivot at the ground between the paws; ~0.75 m long, ~0.67 m to the ear tips.</summary>
+        public const string PivotNote = "pivot at ground level, centred between the paws; y=0 is the street";
 
         /// <summary>No animations are embedded in Cat.fbx; the runtime must not expect a clip yet.</summary>
         public const bool HasEmbeddedAnimation = false;
 
-        // ---- Validation helper ---------------------------------------------------
+        // ---- Validation helpers --------------------------------------------------
         /// <summary>
         /// Reference pose sampler. Used by tests/tools to check the clip once authored; it is
         /// deliberately stateless so it cannot drift from the constants above.
