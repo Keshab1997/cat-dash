@@ -36,3 +36,9 @@ Actions → **Secrets Check** → Run workflow (main) → open Summary for ✅/�
 secret. No values exposed. Local signing test; optional Google OAuth/Play read check.
 Unity activation and Play release permissions remain separate from presence checks.
 See docs/SETUP.md. The workflow is manual; no secrets have been changed by adding it.
+
+## Safe kit updates
+`python3 tool/kit_update.py --check` reports newer toolkit changes without writing.
+Apply only a reviewed full commit with `--apply --ref <full-sha>`; workflow changes
+need owner approval. Customized files conflict instead of being overwritten.
+See [update guide](docs/UPDATING.md). No automatic sync, push or CI.
