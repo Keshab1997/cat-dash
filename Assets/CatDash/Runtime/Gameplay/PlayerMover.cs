@@ -26,7 +26,7 @@ namespace CatDash.Gameplay
             currentLane = Lanes.Clamp(lane);
         }
 
-        /// <summary>Restart state: center lane, zero forward progress.</summary>
+        /// <summary>Restart state: center lane, zero forward progress. DistanceMeters-ই scene-এর single longitudinal basis (C-র spawner এটার উপর ভরসা করবে).</summary>
         public void ResetToStart()
         {
             currentLane = Lane.Center;
@@ -34,8 +34,21 @@ namespace CatDash.Gameplay
             {
                 Vector3 pos = transform.position;
                 pos.x = Lanes.Offset(Lane.Center);
+                pos.z = PlayerZForDistance(0f);
                 transform.position = pos;
             }
+        }
+
+        /// <summary>Maps a run distance to the player's world Z. DistanceMeters-ই scene-এর single longitudinal basis.</summary>
+        public float PlayerZForDistance(float distanceMeters)
+        {
+            return distanceMeters;
+        }
+
+        /// <summary>Lower-case alias kept for callers/tests using the helper name from the brief.</summary>
+        public float playerZForDistance(float distanceMeters)
+        {
+            return PlayerZForDistance(distanceMeters);
         }
 
         private void Update()

@@ -4,7 +4,7 @@ using UnityEngine;
 namespace CatDash.Gameplay
 {
     /// <summary>Touch swipe lane input (+ optional clearly-labelled desktop debug keys). Owner: GAMEPLAY.</summary>
-    public class RunInput : MonoBehaviour
+    public class RunInput : MonoBehaviour, IRunObserver
     {
         [SerializeField] private float swipeThresholdPixels = 60f;
 
@@ -14,6 +14,7 @@ namespace CatDash.Gameplay
         private bool inputEnabled = false;
         private bool tracking = false;
         private Vector2 startPos = Vector2.zero;
+        private RunController registeredController;
 
         public bool InputEnabled { get { return inputEnabled; } }
 
@@ -27,8 +28,52 @@ namespace CatDash.Gameplay
             LaneRequested?.Invoke(direction);
         }
 
+        public void OnRunStateChanged(RunState state)
+        {
+            if (state == RunState.Running) EnableInput();
+            else DisableInput();
+        }
+
+        public void OnDistanceChanged(float meters) { }
+
+        public void OnRunEnded(float finalMeters)
+        {
+            DisableInput();
+        }
+
+        private void OnEnable()
+        {
+            TryRegister();
+        }
+
+        private void OnDisable()
+        {
+            if (registeredController != null)
+            {
+                registeredController.UnregisterObserver(this);
+                registeredController = null;
+            }
+        }
+
+        private void TryRegister()
+        {
+            if (registeredController == RunController.Active) return;
+            if (registeredController != null)
+            {
+                registeredController.UnregisterObserver(this);
+                registeredController = null;
+            }
+            if (RunController.Active != null)
+            {
+                registeredController = RunController.Active;
+                registeredController.RegisterObserver(this);
+            }
+        }
+
         private void Update()
         {
+            TryRegister();
+
             if (!inputEnabled) return;
 
             if (Input.touchCount > 0)
