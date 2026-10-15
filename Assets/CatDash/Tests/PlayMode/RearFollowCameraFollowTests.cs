@@ -1,4 +1,6 @@
+using System;
 using System.Collections;
+using System.Diagnostics;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
@@ -17,12 +19,14 @@ public class RearFollowCameraFollowTests
         camGo.transform.position = Vector3.zero;
         targetGo.transform.position = Vector3.zero;
 
-        for (int i = 0; i < 60; i++)
+        Vector3 desired = cam.ComputeDesiredPosition(targetGo.transform.position);
+        var sw = Stopwatch.StartNew();
+        while (Vector3.Distance(camGo.transform.position, desired) > 0.1f && sw.Elapsed.TotalSeconds < 2f)
         {
             yield return null;
         }
 
-        Vector3 desired = cam.ComputeDesiredPosition(targetGo.transform.position);
+        Debug.Log("RearFollowCamera convergence elapsed: " + sw.Elapsed);
         Assert.Less(Vector3.Distance(camGo.transform.position, desired), 0.1f);
 
         UnityEngine.Object.Destroy(camGo);

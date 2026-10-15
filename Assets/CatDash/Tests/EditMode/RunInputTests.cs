@@ -136,4 +136,15 @@ public class RunInputTests
         input.OnApplicationFocus(true);
         Assert.IsFalse(input.InputEnabled);
     }
+
+    [Test]
+    public void IsRegistered_TrueImmediatelyAfterAddComponent()
+    {
+        var go2 = new GameObject("reg");
+        var rc2 = go2.AddComponent<RunController>();
+        var input2 = go2.AddComponent<RunInput>();
+        Assert.IsTrue(input2.IsRegistered);
+        UnityEngine.Object.DestroyImmediate(go2);
+        RunController.ResetStatics();
+    }
 }
