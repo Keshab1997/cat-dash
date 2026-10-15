@@ -79,7 +79,7 @@ jobs:
             unity-linux-android-${{ hashFiles('ProjectSettings/ProjectVersion.txt', 'Packages/**') }}-
       - name: Unity batch tests (one invocation, no automatic retry)
         if: inputs.stage != 'preflight'
-        uses: game-ci/unity-test-runner@32e57712352b500e17974b245a6dce9e11a73213 # v4
+        uses: game-ci/unity-test-runner@fa6ced25861c16ef56187828c43f76d00df43a23 # v4.3.2
         env:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
@@ -88,7 +88,6 @@ jobs:
           projectPath: .
           testMode: ${{ inputs.stage == 'targeted' && 'editmode' || 'all' }}
           customParameters: ${{ inputs.stage == 'targeted' && format('-testFilter {0}', inputs.test_filter) || '' }}
-          coverageEnabled: false
           artifactsPath: artifacts/tests
           githubToken: ${{ secrets.GITHUB_TOKEN }}
       - name: Require real, nonempty passing Unity results

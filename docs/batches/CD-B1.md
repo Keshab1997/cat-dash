@@ -106,6 +106,18 @@ a frozen member. Implementations live in the owning agent's files.
 
 ## Known risks carried into the batch
 
+### 2026-10-16 — owner-approved CI fix applied (workflow change)
+`game-ci/unity-test-runner` retargeted from `32e5771…` (= tag **v4.4.0**, and the `v4` tag itself now points at the same broken
+commit, so `# v4` was not an option) to **v4.3.2** = `fa6ced25861c16ef56187828c43f76d00df43a23`, and `coverageEnabled: false` was
+removed — v4.3.2 does not define that input, so it can no longer emit the `--no-coverageEnabled` flag that strict-yargs CLI
+`v0.1.72` (its latest release) rejects. `unity-kit.lock.json` hash for `.github/workflows/unity-android.yml` re-pinned
+`4902733…` → `c44ce18…` because this repo now intentionally drifts from `Keshab1997/unity-agent-kit` until the kit ships the same fix
+(`tool/kit_update.py` will show it as a local modification on the next refresh — expected, keep it).
+**Residual, not fixable from here:** v4.4.0 added that input because Unity can crash with coverage on
+(upstream #302/#306/#301), and v4.3.2 has no switch to turn coverage off, so the next run may die in coverage instead — the log will
+name it. Also unverified as before: `com.unity.ugui 2.0.0` resolution and asmdef discovery on `6000.3.3f1`.
+Next: owner re-runs `Unity Android` → stage `full` once; nothing is dispatched from the agent side.
+
 ### 2026-10-16 — first CI run (owner-dispatched, run 38800771749) RED: pipeline bug, not worker code
 `head_sha` `166b9c96d3cbd6bbaafc015400e7f09cd177f9ee`, job `batch` failed after 56s. Step facts from the jobs API:
 `Cheap source preflight` success, `Fail fast — inputs and required secrets` success (so the three UNITY_* secrets are present),
