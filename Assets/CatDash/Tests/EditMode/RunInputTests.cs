@@ -100,8 +100,10 @@ public class RunInputTests
     {
         rc.BeginRun();
         input.OnApplicationFocus(false);
+        rc.OnApplicationFocus(false);
         Assert.IsFalse(input.InputEnabled);
         input.OnApplicationFocus(true);
+        rc.OnApplicationFocus(true);
         Assert.IsTrue(input.InputEnabled);
     }
 
@@ -111,11 +113,15 @@ public class RunInputTests
         rc.BeginRun();
         float before = rc.DistanceMeters;
         input.OnApplicationFocus(false);
+        rc.OnApplicationFocus(false);
         input.OnApplicationPause(true);
+        rc.OnApplicationPause(true);
         rc.Tick(0.5f);
         Assert.AreEqual(before, rc.DistanceMeters, 0.001f);
         input.OnApplicationPause(false);
+        rc.OnApplicationPause(false);
         input.OnApplicationFocus(true);
+        rc.OnApplicationFocus(true);
         Assert.IsTrue(input.InputEnabled);
     }
 
