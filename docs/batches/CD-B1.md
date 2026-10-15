@@ -106,6 +106,28 @@ a frozen member. Implementations live in the owning agent's files.
 
 ## Known risks carried into the batch
 
+### 2026-10-16 — SECOND CI run (0ffad54): Unity actually ran. Real numbers, no more NOT RUN
+game-ci fix worked: **compilation clean, all 5 assemblies + UGUI `2.0.0` discovered** (CD-B1 risk 1 and 2 = cleared),
+EditMode 68/75 (1 skipped = C's `[Explicit]` scene test, by design), PlayMode 2/3 → **7 failed, 70/78**
+(artifact `unity-test-evidence-38802268814-1` → `editmode-results.xml`, `playmode-results.xml`). Failure classes:
+1. **EditMode lifecycle (5 failures, one cause).** NUnit EditMode test objects live in an inactive scene: `OnEnable`/`OnDisable`
+   do not run on `AddComponent`/`DestroyImmediate`. Proof: `RunControllerTests.OnDisable_ClearsActive_WhenControllerDestroyed`
+   fails on its *first* assert (`Expected <ActiveClear> But was: null`, line 102) — `Active` is set in `OnEnable`
+   (RunController.cs:48) so it stays null; consequently `RunInput.OnEnable → TryRegister` never runs, so the 4
+   `RunInputTests` resume cases fail `InputEnabled` Expected True / But was False (lines 85, 107, 125), and line 72 shows the
+   mirror effect (`Expected 3.0875 But was 6.2625`). Fix belongs to A: bind `Active` in `Awake` as well, clear it in `OnDestroy`
+   too, and let `RunInput` resume fall back to `RunController.Active`.
+2. **PlayMode timing flake (1 failure).** `RearFollowCameraFollowTests.Camera_ConvergesToTargetPlusOffset` reports distance
+   5.55200768 = `|offset(0,3.2,-5.5)|` exactly → the camera never moved: `Lerp(current, desired, Clamp01(8*Time.deltaTime))`
+   with `deltaTime ≈ 0.0046s` in the `-batchmode -runTests` player and only 60 `yield return null` frames. Not a production bug:
+   make the test assert a time-based bound instead of raw frame count.
+3. **One real test/behaviour mismatch, unexplained by code reading (1 failure).** `ObstacleSpawnerTests.Obstacles_Behind_The_Player_Are_Recycled`:
+   an instance under "Obstacle Pool" was still active at z=64 after `OnDistanceChanged(400)` (limit 385).
+   `TrySpawn` parks ALL active instances under `PoolParent` (ObstacleSpawner.cs:224-230), `ReturnToPool` only deactivates,
+   and `DespawnBehind`'s guard reads correct — so a same-call respawn/reuse ordering, not the recycle rule itself, is on trial.
+   C owns this: assert on `active` membership + z (the real contract), plus one invariant assertion; no gameplay rule change.
+No branch merged since; nothing was auto-retried. Owner dispatch remains the only CI trigger.
+
 ### 2026-10-16 — CD-B1-B1 + B2 reviewed and MERGED — every worker branch is now in `main`
 Branch `work/agent-b/cd-b1-cat-props`: `f6675d7` (v1, held) + `edcd7abd5afad5c4e8ec53e1815138d6f6e93cc0` (redo), still cut from the old
 `e6904bb` base; `git merge-tree` = **no conflicts** because B touches only its own tree. Verified in review: paths limited to
