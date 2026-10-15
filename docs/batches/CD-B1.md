@@ -106,7 +106,14 @@ a frozen member. Implementations live in the owning agent's files.
 
 ## Known risks carried into the batch
 
-### Held at review: CD-B1-A3 (branch `work/agent-a/cd-b1-hit-camera`, tip `c56cf2686c4d35167e8b25ad51b66d3b1979dd35`)
+### CD-B1-A3 (hit detection + camera framing) — blockers cleared, merged 2026-10-16
+Branch `work/agent-a/cd-b1-hit-camera`, final tip `8bfb6246451432bf6c5fcc9fb7ea5e5e92c3fb23` (fix commit
+`8bfb624`), `--no-ff` merge, no conflicts, paths inside A's ownership. Both held blockers are gone in the
+diff: test call sites switched to `HandleObstacleContact` (no `mover.OnTriggerStay` left) and `float.IsFinite`
+replaced by `IsNaN`/`IsInfinity`; reflection tests assert the private Unity messages still exist.
+Unity EditMode execution still NOT RUN — first real proof is the owner-dispatched CI run.
+
+### Held at review (historical): CD-B1-A3 (branch `work/agent-a/cd-b1-hit-camera`, tip `c56cf2686c4d35167e8b25ad51b66d3b1979dd35`)
 
 Not merged to `main`. Evidence (static review only; Unity not run):
 
