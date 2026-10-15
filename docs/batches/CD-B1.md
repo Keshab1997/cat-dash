@@ -1,7 +1,10 @@
 # CD-B1 — Cat Dash first playable slice (batch record)
 
 - **Batch:** CD-B1 (implement → integrate → QA)
-- **Worker baseline SHA (start here):** `89db4db8d457d5293b8752bd2fff9bcb11df30c8`
+- **Worker baseline SHA (start here):** `e6904bb476fa184c29372a5dab3412a227c80def`
+  (re-pinned 2026-10-16 by Captain: this is `main` + the missing `Assets/CatDash.meta`
+  folder meta that made `python3 tool/preflight.py` fail at the older pin `89db4db8`.
+  Any branch cut from `89db4db8` must be re-cut from the SHA above.)
 - **Skeleton commit inside that baseline:** `856aa9b2d8f66f0b7b6f4845d21048c18a72515b`
   ("chore(batch1): freeze Cat Dash skeleton, UGUI package and shared API contract") —
   the frozen contract/API surface lives in these files, not in prose.
@@ -52,6 +55,25 @@ sandbox. Missing capture = visual check NOT RUN, never silently accepted.
 
 `full` needs only `UNITY_LICENSE`, `UNITY_EMAIL`, `UNITY_PASSWORD`. No CI dispatch, no
 polling, no retry loop from the agent side; the owner runs it once per batch.
+
+## Frozen cross-agent contact points (Captain, dispatch 2026-10-16)
+
+These are the only names A/B/C may rely on across ownership lines; none of them renames
+a frozen member. Implementations live in the owning agent's files.
+
+- **Contact path (A ↔ B/C):** obstacles carry `ObstacleMarker` + a trigger `Collider`.
+  `PlayerMover` calls `OnTriggerStay(Collider other)`, validates
+  `other.GetComponent<ObstacleMarker>() != null`, then calls the frozen
+  `RunController.EndRun()`. Nothing new is added to the `CatDash.Gameplay` public API.
+- **Frame-free determinism (A):** `RunController.Tick(float deltaTime)` is public so
+  EditMode tests can advance the sim without frames; the frozen members keep their
+  signatures, `Update()` only forwards `Time.deltaTime`.
+- **Art folder (B → C):** meshes under `Assets/Art/Generated/**` (`.fbx`), provenance
+  table in `docs/ASSETS.md`. Agent C resolves them at generation time with
+  `AssetDatabase.FindAssets("t:Model", new[]{"Assets/Art/Generated"})` and must fall
+  back to gray-box primitives when the folder is empty (B lands in parallel).
+- **One scene, one owner:** the CatDash scene and its generator belong to C only. B never
+  touches scenes/UI; A never touches `Assets/Art/**` or scenes.
 
 ## Known risks carried into the batch
 
