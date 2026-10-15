@@ -62,31 +62,87 @@ public class PlayerMoverTests
     }
 
     [Test]
-    public void OnTriggerStay_WithObstacleMarker_EndsRun()
+    public void HandleObstacleContact_WithObstacleMarker_EndsRun()
     {
         rc.BeginRun();
         var other = new GameObject("obstacle");
         other.AddComponent<ObstacleMarker>();
         var col = other.AddComponent<BoxCollider>();
-        mover.OnTriggerStay(col);
+        mover.HandleObstacleContact(col);
         Assert.AreEqual(RunState.GameOver, rc.State);
         UnityEngine.Object.DestroyImmediate(other);
     }
 
     [Test]
-    public void OnTriggerStay_WithoutMarker_DoesNotEndRun()
+    public void HandleObstacleContact_WithoutMarker_DoesNotEndRun()
     {
         rc.BeginRun();
         var other = new GameObject("not-obstacle");
         var col = other.AddComponent<BoxCollider>();
-        mover.OnTriggerStay(col);
+        mover.HandleObstacleContact(col);
         Assert.AreEqual(RunState.Running, rc.State);
         UnityEngine.Object.DestroyImmediate(other);
+    }
+
+    [Test]
+    public void HandleObstacleContact_WithMarker_EndsRun()
+    {
+        rc.BeginRun();
+        var other = new GameObject("obstacle");
+        other.AddComponent<ObstacleMarker>();
+        var col = other.AddComponent<BoxCollider>();
+        mover.HandleObstacleContact(col);
+        Assert.AreEqual(RunState.GameOver, rc.State);
+        UnityEngine.Object.DestroyImmediate(other);
+    }
+
+    [Test]
+    public void HandleObstacleContact_WithoutMarker_StaysRunning()
+    {
+        rc.BeginRun();
+        var other = new GameObject("not-obstacle");
+        var col = other.AddComponent<BoxCollider>();
+        mover.HandleObstacleContact(col);
+        Assert.AreEqual(RunState.Running, rc.State);
+        UnityEngine.Object.DestroyImmediate(other);
+    }
+
+    [Test]
+    public void HandleObstacleContact_AfterGameOver_DoesNotNotifyTwice()
+    {
+        rc.BeginRun();
+        int endedCount = 0;
+        var observer = new CountingObserver { OnEnded = () => endedCount++ };
+        rc.RegisterObserver(observer);
+        var other = new GameObject("obstacle");
+        other.AddComponent<ObstacleMarker>();
+        var col = other.AddComponent<BoxCollider>();
+        mover.HandleObstacleContact(col);
+        mover.HandleObstacleContact(col);
+        Assert.AreEqual(1, endedCount);
+        UnityEngine.Object.DestroyImmediate(other);
+    }
+
+    [Test]
+    public void UnityMessages_OnTriggerEnterAndStay_ArePrivate()
+    {
+        var enter = typeof(PlayerMover).GetMethod("OnTriggerEnter", BindingFlags.NonPublic | BindingFlags.Instance);
+        var stay = typeof(PlayerMover).GetMethod("OnTriggerStay", BindingFlags.NonPublic | BindingFlags.Instance);
+        Assert.IsNotNull(enter);
+        Assert.IsNotNull(stay);
     }
 
     private static void SetController(PlayerMover mover, RunController rc)
     {
         var f = typeof(PlayerMover).GetField("controller", BindingFlags.NonPublic | BindingFlags.Instance);
         if (f != null) f.SetValue(mover, rc);
+    }
+
+    private class CountingObserver : IRunObserver
+    {
+        public Action OnEnded;
+        public void OnRunStateChanged(RunState state) { }
+        public void OnDistanceChanged(float meters) { }
+        public void OnRunEnded(float finalMeters) { if (OnEnded != null) OnEnded(); }
     }
 }
