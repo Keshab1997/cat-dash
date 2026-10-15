@@ -100,8 +100,40 @@ public class RunInputTests
     {
         rc.BeginRun();
         input.OnApplicationFocus(false);
+        rc.OnApplicationFocus(false);
         Assert.IsFalse(input.InputEnabled);
         input.OnApplicationFocus(true);
+        rc.OnApplicationFocus(true);
         Assert.IsTrue(input.InputEnabled);
+    }
+
+    [Test]
+    public void FocusPauseInterleaving_WhenRunning_ResumesInputAndFreezesDistance()
+    {
+        rc.BeginRun();
+        float before = rc.DistanceMeters;
+        input.OnApplicationFocus(false);
+        rc.OnApplicationFocus(false);
+        input.OnApplicationPause(true);
+        rc.OnApplicationPause(true);
+        rc.Tick(0.5f);
+        Assert.AreEqual(before, rc.DistanceMeters, 0.001f);
+        input.OnApplicationPause(false);
+        rc.OnApplicationPause(false);
+        input.OnApplicationFocus(true);
+        rc.OnApplicationFocus(true);
+        Assert.IsTrue(input.InputEnabled);
+    }
+
+    [Test]
+    public void FocusPauseInterleaving_AfterGameOver_StaysDisabled()
+    {
+        rc.BeginRun();
+        rc.EndRun();
+        input.OnApplicationFocus(false);
+        input.OnApplicationPause(true);
+        input.OnApplicationPause(false);
+        input.OnApplicationFocus(true);
+        Assert.IsFalse(input.InputEnabled);
     }
 }

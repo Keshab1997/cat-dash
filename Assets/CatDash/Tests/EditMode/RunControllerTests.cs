@@ -94,7 +94,7 @@ public class RunControllerTests
     }
 
     [Test]
-    public void Active_ClearedOnDestroy_WithoutResetStatics()
+    public void OnDisable_ClearsActive_WhenControllerDestroyed()
     {
         RunController.ResetStatics();
         var go2 = new GameObject("ActiveClear");
