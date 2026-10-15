@@ -106,6 +106,17 @@ a frozen member. Implementations live in the owning agent's files.
 
 ## Known risks carried into the batch
 
+### 2026-10-16 — CD-B1-B1 + B2 reviewed and MERGED — every worker branch is now in `main`
+Branch `work/agent-b/cd-b1-cat-props`: `f6675d7` (v1, held) + `edcd7abd5afad5c4e8ec53e1815138d6f6e93cc0` (redo), still cut from the old
+`e6904bb` base; `git merge-tree` = **no conflicts** because B touches only its own tree. Verified in review: paths limited to
+`Assets/Art/**` (+ its root `.meta`), `tool/blender_*.py`, `docs/ASSETS.md`; the reference sheets were NOT re-committed by B;
+`RunCycleSpec` poses are exactly Contact/Down/Air/Up order with `RootMotion = false`, `ClipName = "Run"`, matching the approved sheet;
+`docs/ASSETS.md` now carries a Reference column and states honestly that no AI image is used as mesh or texture map;
+`ArtContractTests` checks real tri budgets from imported meshes (`Cat.fbx` ≤ 4000). Kept as-is: `importAnimation: 0` in `Cat.fbx.meta`
+(no rig this batch — flip it when rig/run-cycle ships) and the fact that budget claims are authored, not executed. preflight 0 errors on
+the branch tip and on merged `main`. Unity import/scale/material + visual gate: still **NOT RUN** — only owner-captured footage from the
+merged SHA can clear the gate, and the first Unity verdict comes from the next CI run (on the fixed workflow).
+
 ### 2026-10-16 — owner-approved CI fix applied (workflow change)
 `game-ci/unity-test-runner` retargeted from `32e5771…` (= tag **v4.4.0**, and the `v4` tag itself now points at the same broken
 commit, so `# v4` was not an option) to **v4.3.2** = `fa6ced25861c16ef56187828c43f76d00df43a23`, and `coverageEnabled: false` was
