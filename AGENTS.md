@@ -59,3 +59,10 @@ Say: “batch ready — Actions → Unity Android → Run workflow”. Do not wa
 - Keep ads, multiplayer, purchases and production publishing out of the first slice.
 - Package ID com.keshab.catdash is a starter proposal; confirm ownership/availability
   with owner before first Play upload. No secret values have been installed here.
+
+### Visual quality requirement
+- Actual gameplay should closely match docs/art/cat-dash-visual-target.png. Read the
+  Visual acceptance gate in docs/GAME_BRIEF.md; graybox is not final visual delivery.
+- Head must include this gate in Content/QA briefs. Use genuine candidate-SHA captures,
+  not AI mockups, for comparison. Owner approves the actual look; absent captures or
+  profiling must be labelled unverified. No pixel-perfect/performance guarantees.
