@@ -46,4 +46,11 @@ jobs:
           lines.append(f"- apk (no version_code, as dispatch will send): {'OK' if not validate(apk,config) else '; '.join(validate(apk,config))}")
           Path(os.environ.get('GITHUB_STEP_SUMMARY','/tmp/s.md')).write_text('\n'.join(lines)+'\n')
           print('\n'.join(lines))
+          Path('stage-probe.md').write_text('\n'.join(lines)+'\n')
           PYCODE
+      - name: Publish probe report as artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: stage-probe
+          path: stage-probe.md
+          if-no-files-found: error
