@@ -106,6 +106,19 @@ a frozen member. Implementations live in the owning agent's files.
 
 ## Known risks carried into the batch
 
+### 2026-10-16 — B4 (cat rig + `Run` clip) reviewed and MERGED — B worked ahead of the block I drafted, and it is a good piece of work
+B `6f95e85503f9440d70aefa6fa633893ba4e6aa9e` on `work/agent-b/cd-b1-cat-rig`, base `43bcfab6` (contains B3), zero conflicts against the now-green main,
+ownership clean (`Assets/Art/**` + `tool/blender_*` + `docs/ASSETS.md` only). Cat.fbx 86156 → 100908 B, meta: `importAnimation: 1`, `animationType: 1`
+(Legacy), `animationCompression: 0`, `animationWrapMode: 2`, `resampleCurves: 0`, `optimizeBones: 0` — the last one is deliberate and documented: rigid bone
+parenting leaves no vertices on bones, so bone optimisation could drop the rig.
+Captain-side checks that passed: (1) every `RunCycleSpec.X` the 264 new test lines reference exists in `RunCycleSpec.cs` (no CS0117 risk — `ClipName`=`Run`,
+`FrameCount`=12, `SampleRate`=24, `LengthSeconds`=0.5, `RootMotion`=false, `BoneCount`=6 with a 6-entry `BoneNames`, `HasEmbeddedAnimation`=true);
+(2) I scanned the FBX binary myself — the old `Take 001`/`Default Take` strings are gone and a `Run.tak` plus `ActiveAnimStackName` exist, which corroborates
+B's own minimal-FBX-reader claim that Unity will name the Legacy clip `Run`; the armature strings are `CatDash_Rig`/`Root` while the six *bones* are not
+named in the spec list. B did not touch `SidePhaseOffset` semantics, only documented that a 6-bone rig cannot express L/R phasing.
+B's own stated limit: everything is verified in Blender + by reading the FBX bytes, **Unity import is NOT proven** — Legacy clip creation, the resulting clip
+name and the `optimizeBones` interaction are exactly what CI's art tests and the owner's Editor capture must confirm. Next: run 10 on this SHA.
+
 ### 2026-10-16 — CI GREEN: run 9 `38855390443` on `fdcdf7106b38755424f9a3e1d77754ceceb06957` — job `batch` success
 EditMode 93 tests: **92 passed, 0 failed, 1 skipped** (the intentional `[Explicit]` `CatDashSceneGeneratorTests.GeneratedScene_Loads_As_A_SceneAsset`);
 PlayMode **3/3** (`RearFollowCameraFollowTests` green). `Cheap source preflight` 0 errors, `Require real, nonempty passing Unity results` success,
