@@ -54,6 +54,11 @@ now carry (also emitted in each generator's `REPORT_JSON`):
   `tool/blender_verify_assets.py` (Blender import check, not a Unity check).
 - **Facing.** Exported with `axis_forward='-Z', axis_up='Y'`: the cat faces Unity
   +Z, the road runs along Unity Z, the barrier board faces Unity +Z.
+- **Imported root name.** Unity names the imported root GameObject after the FILE, so
+  `Cat.fbx` imports as a root object called **`Cat`** — not `CatDash_Cat` (the empty node
+  the generator exports does not become an object of its own), and the 13 part islands are
+  its descendants. Frozen as `RunCycleSpec.ImportedRootName` and asserted by
+  `Cat_KeepsItsPartHierarchyForTheFutureRig`; scene/rig code must look the model up by it.
 - **Obstacles.** `Prop_Crate` / `Prop_Barrier` / `Prop_Pot` deliberately contain no
   prefab and no collider component: Agent C attaches `ObstacleMarker` plus a trigger
   `Collider` when building the scene (frozen contact point in `docs/batches/CD-B1.md`).
@@ -82,6 +87,10 @@ now carry (also emitted in each generator's `REPORT_JSON`):
 - There is no animation yet (skinning is explicitly out of scope this batch). The
   four poses of `cat-v2-run-cycle-sheet.png` are recorded as the contract in
   `Assets/Art/RunCycleSpec.cs` (`RunPose` order contact → down → up → air).
+- The body-bob curve in `RunCycleSpec.BodyBobMetresAt` is a raised cosine whose baseline
+  is the contact height: 0 at both contacts, `+BodyBobMetres` at mid-stance (0.25) and at
+  the airborne apex (0.75). It replaced a `Sin`-based curve that peaked on the contacts
+  and returned a 1.8e-18 residue at the quarters (the value CI failed on).
 - The "mouse" blaze on the back is painted at ~55 % of a 384 px tile, so it reads as a
   small marking rather than a big graphic; it is verified by eye in the Blender previews,
   not by an automated test.

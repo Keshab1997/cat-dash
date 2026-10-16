@@ -106,9 +106,21 @@ namespace CatDash.Art
         /// <summary>Left/right legs of a pair are a quarter cycle out of phase for a lively gait.</summary>
         public const float SidePhaseOffset = 0.25f;
 
-        /// <summary>Vertical body bob in metres, twice per stride (two contacts per cycle).</summary>
+        /// <summary>
+        /// Vertical body bob in metres: the UPWARD offset above the contact height, reached
+        /// twice per stride (mid-stance and the airborne apex). The baseline of
+        /// <see cref="BodyBobMetresAt"/> is therefore the contact height, i.e. 0 = lowest
+        /// point of the bounce; see that method for the phase convention.
+        /// </summary>
         public const float BodyBobMetres = 0.015f;
         public const float BodyBobFrequencyMultiplier = 2f;
+
+        /// <summary>
+        /// Values below this (in metres) are snapped to the baseline by
+        /// <see cref="BodyBobMetresAt"/>. Chosen far below <see cref="BodyBobMetres"/> and far
+        /// above any floating-point residue, so contact positions return exactly 0.
+        /// </summary>
+        public const float BodyBobContactEpsilon = 1e-6f;
 
         /// <summary>Tail sway, degrees of side-to-side yaw, lagging the body by an eighth cycle.</summary>
         public const float TailSwayDegrees = 8f;
@@ -120,6 +132,15 @@ namespace CatDash.Art
         // ---- Import / transform contract -----------------------------------------
         /// <summary>Exported with axis_forward='-Z', axis_up='Y': the cat faces Unity +Z.</summary>
         public const string ForwardAxis = "+Z";
+
+        /// <summary>
+        /// Name of the root GameObject Unity creates when <c>Cat.fbx</c> is imported. Unity
+        /// names that root after the FILE, not after the empty root node the generator
+        /// exports ("CatDash_Cat"), which is why the part islands are all DESCENDANTS of this
+        /// object rather than children of a node called "CatDash_Cat". Asserted on purpose by
+        /// ArtContractTests so scene/rig code can rely on the name it has to look up.
+        /// </summary>
+        public const string ImportedRootName = "Cat";
 
         /// <summary>Pivot at the ground between the paws; ~0.75 m long, ~0.67 m to the ear tips.</summary>
         public const string PivotNote = "pivot at ground level, centred between the paws; y=0 is the street";
@@ -145,7 +166,21 @@ namespace CatDash.Art
             return LegSwingDegrees * (float)System.Math.Sin(phase * 2f * System.Math.PI);
         }
 
-        /// <summary>Vertical body offset in metres for a cycle position (see <see cref="BodyBobMetres"/>).</summary>
+        /// <summary>
+        /// Vertical body offset in metres for a cycle position.
+        ///
+        /// Convention (frozen with this method, documented so A and C can rely on it):
+        /// the run cycle dips at each contact and rises at mid-stance and at the airborne
+        /// apex, so the value is the UPWARD offset above the contact height —
+        /// <c>0</c> at both contacts (cycles 0 and 0.5), <c>+BodyBobMetres</c> at
+        /// mid-stance (0.25) and at the apex (0.75). The curve never goes negative.
+        ///
+        /// This is a raised cosine, not a plain <c>Sin</c>. The earlier Sin version was
+        /// wrong in phase (it put the peak on the contacts and the trough at mid-stance)
+        /// and, worse, could not be asserted to exact zero: <c>Sin(2 * 2pi * 0.25)</c> is
+        /// <c>sin(pi)</c>, which is 1.8e-18 in floating point and failed CI. The small
+        /// epsilon snap below keeps the contact positions on the baseline exactly.
+        /// </summary>
         public static float BodyBobMetresAt(float cycles)
         {
             float phase = cycles % 1f;
@@ -153,8 +188,9 @@ namespace CatDash.Art
             {
                 phase += 1f;
             }
-            return BodyBobMetres
-                   * (float)System.Math.Sin(phase * BodyBobFrequencyMultiplier * 2f * System.Math.PI);
+            double angle = phase * BodyBobFrequencyMultiplier * 2.0 * System.Math.PI;
+            float offset = (float)(BodyBobMetres * ((1.0 - System.Math.Cos(angle)) / 2.0));
+            return offset < BodyBobContactEpsilon ? 0f : offset;
         }
     }
 }

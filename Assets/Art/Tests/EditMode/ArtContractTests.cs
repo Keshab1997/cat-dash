@@ -163,10 +163,31 @@ namespace CatDash.Art.Tests
         [Test]
         public void RunCycleSpec_BodyBobPeaksTwicePerCycle()
         {
-            Assert.AreEqual(0f, RunCycleSpec.BodyBobMetresAt(0f), 1e-4f);
-            Assert.AreEqual(RunCycleSpec.BodyBobMetres, RunCycleSpec.BodyBobMetresAt(0.25f), 1e-4f,
-                "two contacts per cycle means a peak at a quarter and three quarters");
-            Assert.AreEqual(-RunCycleSpec.BodyBobMetres, RunCycleSpec.BodyBobMetresAt(0.75f), 1e-4f);
+            // Convention frozen in RunCycleSpec.BodyBobMetresAt: 0 = the contact height, so
+            // the run DIPS at both contacts and rises at mid-stance (0.25) and at the
+            // airborne apex (0.75). Asserted with exact comparisons on purpose: the previous
+            // Sin-based curve peaked on the contacts and returned 1.8e-18 (Sin(pi)) at the
+            // quarters, which is what failed CI. A raised cosine plus the documented epsilon
+            // snap puts the contacts on the baseline exactly.
+            Assert.IsTrue(RunCycleSpec.BodyBobMetresAt(0.25f) == RunCycleSpec.BodyBobMetres,
+                "mid-stance (0.25) must sit exactly at the peak offset");
+            Assert.IsTrue(RunCycleSpec.BodyBobMetresAt(0.75f) == RunCycleSpec.BodyBobMetres,
+                "airborne apex (0.75) must sit exactly at the peak offset");
+            Assert.IsTrue(RunCycleSpec.BodyBobMetresAt(0f) == 0f,
+                "the first contact must sit exactly on the baseline, not at a 1e-18 residue");
+            Assert.IsTrue(RunCycleSpec.BodyBobMetresAt(0.5f) == 0f,
+                "the second contact must sit exactly on the baseline");
+
+            // No residue anywhere else either, and the curve stays inside its documented range.
+            for (int i = 0; i <= 100; i++)
+            {
+                float cycles = i / 100f;
+                float bob = RunCycleSpec.BodyBobMetresAt(cycles);
+                Assert.IsTrue(bob >= 0f && bob <= RunCycleSpec.BodyBobMetres,
+                    $"body bob left its documented range at cycles={cycles}: {bob}");
+                Assert.IsTrue(bob == 0f || bob > 1e-9f,
+                    $"numerical residue at cycles={cycles}: {bob} (floating-point noise is not a bob)");
+            }
         }
 
         // ---- generated assets, as imported by Unity ------------------------------
@@ -266,18 +287,33 @@ namespace CatDash.Art.Tests
             var cat = AssetDatabase.LoadAssetAtPath<GameObject>($"{GeneratedFolder}/Cat.fbx");
             Assert.IsNotNull(cat, "Cat.fbx did not import");
 
-            // RunCycleSpec's skinning rule is "one island = one bone", so the islands must
-            // survive the import as separate objects with their joint pivots.
-            var names = cat.GetComponentsInChildren<Transform>(true).Select(t => t.name).ToArray();
-            foreach (var expected in new[]
-                     {
-                         "CatDash_Cat", "Body", "Neck", "Head", "EyeL", "EyeR", "Muzzle",
-                         "EarL", "EarR", "LegFrontL", "LegFrontR", "LegHindL", "LegHindR",
-                         "Tail",
-                     })
+            // Unity names the imported root GameObject after the FILE ("Cat"), not after the
+            // empty root node the generator exports ("CatDash_Cat" — that node does not become
+            // an object of its own). The islands are therefore the root's DESCENDANTS, and the
+            // importer behaviour is asserted deliberately here (see
+            // RunCycleSpec.ImportedRootName) instead of being worked around in the test.
+            Assert.AreEqual(RunCycleSpec.ImportedRootName, cat.transform.name,
+                "the imported root name changed; scene/rig code looks the model up by it");
+
+            var descendants = cat.GetComponentsInChildren<Transform>(true)
+                .Where(transform => transform != cat.transform)
+                .Select(transform => transform.name)
+                .ToArray();
+
+            // RunCycleSpec's skinning rule is "one island = one bone", so every island must
+            // survive the import as its own object with its joint pivot.
+            var expected = new[]
             {
-                CollectionAssert.Contains(names, expected,
-                    $"Cat.fbx lost the '{expected}' object; RunCycleSpec assumes it exists");
+                "Body", "Neck", "Head", "EyeL", "EyeR", "Muzzle",
+                "EarL", "EarR", "LegFrontL", "LegFrontR", "LegHindL", "LegHindR", "Tail",
+            };
+            CollectionAssert.AreEquivalent(expected, descendants,
+                "the cat's island set changed; RunCycleSpec's bone mapping assumes exactly these "
+                + "thirteen objects below the root");
+            foreach (var name in expected)
+            {
+                CollectionAssert.Contains(descendants, name,
+                    $"Cat.fbx lost the '{name}' object; RunCycleSpec assumes it exists");
             }
         }
     }
