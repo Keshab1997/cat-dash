@@ -177,6 +177,17 @@ named in the spec list. B did not touch `SidePhaseOffset` semantics, only docume
 B's own stated limit: everything is verified in Blender + by reading the FBX bytes, **Unity import is NOT proven** — Legacy clip creation, the resulting clip
 name and the `optimizeBones` interaction are exactly what CI's art tests and the owner's Editor capture must confirm. Next: run 10 on this SHA.
 
+### 2026-10-16 — CI green ON MAIN with B5, and a phone APK built from main
+Run `38875481351` (stage `full`, main `9e6f5f22`): batch success — EditMode `CatDash.Art.Tests.EditMode` 14/14, `CatDash.Tests.EditMode` 79 pass + the one
+intentional `[Explicit]` skip, `UnityAgentKit.EditMode` 2/2; PlayMode 2/2 + 1/1. B5's scale fix is therefore CI-verified, not just locally.
+Run `38877770966` (stage `apk`, main `4de93a04`) → `android-apk-4de93a045e714a23db37df8ce11bb2f2d4de87e3-1`: `CatDash-main-4de93a0.apk`, 16,255,724 bytes,
+403 entries, IL2CPP (one `classes*.dex` set + `assets/bin/Data/Managed`), `lib/arm64-v8a` only, `unzip -t` clean, APK Signing Block present 27,072 bytes before
+the central directory (v2/v3 debug signature; no v1 JAR entries). `apksigner verify` NOT RUN (no Android SDK here).
+Note on the scene: the `scene` job pushed the generated scene onto main as `4de93a04` (its `contents: write` targets the dispatched ref). That is now the
+committed scene, so future `apk` runs skip generation and are idempotent; the scratch branch `ci/apk` was deleted after its CI commits were cherry-picked to main.
+B5 (`8d454bd`) and `df07db8` were pushed to main by their owners instead of via `work/agent-*` branches — the fixes are good and CI-verified, but that
+shortcut skips my diff review, so it must not become the habit.
+
 ### 2026-10-16 — phone pipeline works end to end in CI (no secrets), and B5's scale fix landed
 **B5 `8d454bd` reviewed** (pushed straight to main by its owner rather than via `work/agent-b/…` — noted, not repeated): it found the real cause of run 10's
 `Expected: 0.015 / But was: 0.00015` — Blender's exporter baked `Lcl Scaling 100` on every FBX root, so Unity imported a 100× world with animation
