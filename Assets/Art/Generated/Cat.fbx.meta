@@ -12,11 +12,14 @@ ModelImporter:
     legacyGenerateAnimations: 4
     bakeSimulation: 0
     optimizeGameObjects: 0
-    animationCompression: 1
+    animationCompression: 0
     animationPositionError: 0.5
     animationRotationError: 0.5
     animationScaleError: 0.5
-  importAnimation: 0
+    animationWrapMode: 2
+  importAnimation: 1
+  animationType: 1
+  resampleCurves: 0
   importBlendShapeDeformPercent: 0
   importBlendShapes: 0
   importCameras: 0
@@ -46,7 +49,7 @@ ModelImporter:
   skinWeights: 4
   maxBonesPerVertex: 4
   minBoneWeight: 0.001
-  optimizeBones: 1
+  optimizeBones: 0
   meshSmoothingAngle: 60
   appendAnchor: 0
   externalObjects: {}

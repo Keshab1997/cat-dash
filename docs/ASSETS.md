@@ -20,7 +20,7 @@ texture map, or a source of geometry — the sheets are compared against, never 
 
 | Path | Reference | Creator/source | License/permission | Generated how | Budget/cleanup | Verified in Unity |
 |---|---|---|---|---|---|---|
-| Assets/Art/Generated/Cat.fbx | docs/art/refs/cat-v2-stylized-3d-render.png (look), docs/art/refs/cat-v2-run-cycle-sheet.png (poses) | Original procedural, Agent B (`tool/blender_cat.py`) | Own work, repo license | Blender 4.5.14 LTS; explicit verts/faces/UVs; 13 islands on joint pivots | 1870 tris (cap 4000), 1 material, 1024² atlas, 0.24 × 0.78 × 0.70 m | Import/budget/material asserted by `CatDash.Art.Tests.EditMode`; **owner capture pending** |
+| Assets/Art/Generated/Cat.fbx | docs/art/refs/cat-v2-stylized-3d-render.png (look), docs/art/refs/cat-v2-run-cycle-sheet.png (poses) | Original procedural, Agent B (`tool/blender_cat.py`) | Own work, repo license | Blender 4.5.14 LTS; explicit verts/faces/UVs; 13 islands on joint pivots, rigidly parented to a 6-bone rig; embedded `Run` clip | 1870 tris (cap 4000), 1 material, 1024² atlas, 0.24 × 0.78 × 0.70 m, 6 bones, 1 clip 0.5 s | Blender round trip + spec-to-mesh asserted by `tool/blender_verify_assets.py`; import/keys/bob asserted by `CatDash.Art.Tests.EditMode`; **owner capture pending** |
 | Assets/Art/Generated/Prop_Crate.fbx | docs/art/refs/props-road-sheet.png | Original procedural, Agent B (`tool/blender_propset.py --asset crate`) | Own work, repo license | Chamfered octagonal prism + corner posts; teal band on every face | 112 tris (cap 800), 1 material, 512² atlas, 0.80 m cube | Same test assembly; **owner capture pending** |
 | Assets/Art/Generated/Prop_Barrier.fbx | docs/art/refs/props-road-sheet.png | Original procedural, Agent B (`tool/blender_propset.py --asset barrier`) | Own work, repo license | Cream board with orange hazard stripes on a splayed wooden trestle | 72 tris (cap 800), 1 material, 512² atlas, 1.60 × 0.35 × 0.92 m | Same test assembly; **owner capture pending** |
 | Assets/Art/Generated/Prop_Pot.fbx | docs/art/refs/props-road-sheet.png | Original procedural, Agent B (`tool/blender_propset.py --asset pot`) | Own work, repo license | Tapered terracotta planter, soil disc, 5 stems with rounded leaves | 564 tris (cap 800), 1 material, 512² atlas, 0.60 × 0.60 × 0.73 m | Same test assembly; **owner capture pending** |
@@ -72,9 +72,29 @@ now carry (also emitted in each generator's `REPORT_JSON`):
   array instead of throwing, which would let a triangle-budget assertion pass at zero.
   `GeneratedModels_ImportWithinTriangleBudget` asserts a non-zero count for that reason.
   These meshes are a few hundred triangles, so the memory cost is nil.
+- **Animation import settings.** `Cat.fbx.meta` imports the cat as a LEGACY model
+  (`animationType: 1`, `importAnimation: 1`) so the take becomes a clip named `Run`
+  (Unity names a Legacy clip after the FBX take). `animationCompression: 0` keeps every
+  authored key, `animationWrapMode: 2` loops it, `resampleCurves: 0` stops the importer
+  re-timing the keys, and `optimizeBones: 0` keeps the rig: with rigid bone parenting the
+  bones carry no vertices, and bone optimisation would otherwise be free to drop them.
+- **Take name.** Blender names the FBX take after the SCENE on the export path this rig
+  uses, and `<object>|<action>` on its per-action path - so `tool/blender_cat.py` names
+  the scene `Run`. That is why the clip is called `Run` and not `CatDash_Rig|Run`; the
+  name is asserted on the FBX itself by `tool/blender_verify_assets.py`.
+- **Keyframes.** The exporter samples every `bake_anim_step`-th frame, so the step is the
+  pose spacing (3): the clip is keyed on the pose frames and nothing else, instead of
+  being baked to one key per frame. A channel whose value repeats its neighbour (the tail
+  yaw reaches the same angle at the Air and the Contact poses) carries four keys rather
+  than five, because the exporter merges a trailing duplicate; the clip as a whole is
+  still keyed on exactly `RunCycleSpec.KeyedFrames()`.
 - **Budget check.** `python3 tool/preflight.py` covers repository hygiene;
   `blender --background --python tool/blender_verify_assets.py` re-imports the FBXs
-  and checks tri budgets, single material, UV survival and pivot heights;
+  and checks tri budgets, single material, UV survival and pivot heights; for the cat it
+  also reads the take name, duration and key times straight out of the FBX binary, and
+  measures every published run-cycle number (bob, leg pitch, tail sway, head
+  counter-rotation) on the imported meshes, comparing them with the constants parsed out
+  of `Assets/Art/RunCycleSpec.cs` so the C#, the generator and the FBX cannot drift;
   `CatDash.Art.Tests.EditMode` re-checks budgets, materials, textures, the atlas
   contract and the run-cycle pose order inside Unity (runs in CI's `full` stage).
 
@@ -84,9 +104,16 @@ now carry (also emitted in each generator's `REPORT_JSON`):
   fur groom, whiskers as geometry, and sub-surface fuzz are out of scope for a
   low-poly mobile asset. Markings are painted at ~1024², so a close-up camera will
   show flat colour where the reference shows individual hairs.
-- There is no animation yet (skinning is explicitly out of scope this batch). The
-  four poses of `cat-v2-run-cycle-sheet.png` are recorded as the contract in
-  `Assets/Art/RunCycleSpec.cs` (`RunPose` order contact → down → up → air).
+- The rig is RIGID, not skinned: each of the 13 islands is parented to exactly one
+  bone (RunCycleSpec.SkinningRule), because the islands were modelled with their pivots
+  on the joints. There are no weights and no blend shapes, so the cat stays crisp but
+  cannot deform - which is the intended low-poly mobile look, not a shortcut.
+- The embedded clip is the four poses of `cat-v2-run-cycle-sheet.png`
+  (`RunPose` order contact → down → up → air), keyed on frames 0/3/6/9 at 24 fps with
+  the Contact pose repeated on frame 12 so the 0.5 s loop closes. The vertical bob is a
+  translation on the `Root` bone, the Contact pose is the model's rest pose, and the
+  left/right legs of a pair swing together because a pair shares one bone
+  (`SidePhaseOffset` needs more than six bones and is not expressible yet).
 - The body-bob curve in `RunCycleSpec.BodyBobMetresAt` is a raised cosine whose baseline
   is the contact height: 0 at both contacts, `+BodyBobMetres` at mid-stance (0.25) and at
   the airborne apex (0.75). It replaced a `Sin`-based curve that peaked on the contacts
@@ -94,6 +121,12 @@ now carry (also emitted in each generator's `REPORT_JSON`):
 - The "mouse" blaze on the back is painted at ~55 % of a 384 px tile, so it reads as a
   small marking rather than a big graphic; it is verified by eye in the Blender previews,
   not by an automated test.
+- **Animation: verified in Blender, NOT in Unity.** The round trip proves the FBX holds
+  the right take, the right pose keys and the right values (the measured error against
+  the spec formulas is 0.0 mm on legs, tail and head, and 0.000/0.015 m for the bob).
+  It does NOT prove how Unity's importer reads it - Legacy clip creation, the clip name,
+  the wrap mode and the `optimizeBones` interaction can only be confirmed by the Editor,
+  and the art tests in CI are what will confirm them.
 - **Visual gate: NOT RUN.** Only an owner-captured Unity screenshot/clip from the
   reviewed candidate SHA can clear it (docs/GAME_BRIEF.md, "Visual acceptance gate").
 
@@ -110,6 +143,11 @@ blender --background --python tool/blender_propset.py -- --asset pot     --outpu
 blender --background --python tool/blender_road.py    -- --output Assets/Art/Generated/Road_Segment.fbx
 blender --background --python tool/blender_verify_assets.py
 ```
+
+Regenerating the cat also rewrites its `.meta` with the animation import settings above.
+The FBX embeds a creation timestamp, so regenerating is not byte-reproducible; what is
+reproducible (and checked) is the geometry, the atlas, the rig and the clip's take name,
+keys and pose values.
 
 Generators refuse to overwrite an existing FBX (delete it first if intended) and
 re-emit the `.meta` files with deterministic GUIDs derived from the asset path, so a

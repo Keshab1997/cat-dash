@@ -142,10 +142,32 @@ namespace CatDash.Art.Tests
             Assert.AreEqual(6, RunCycleSpec.BoneNames.Length, "bone count");
             Assert.AreEqual(RunCycleSpec.BoneCount, RunCycleSpec.BoneNames.Length);
             CollectionAssert.AllItemsAreUnique(RunCycleSpec.BoneNames);
+            CollectionAssert.AreEqual(
+                new[] { "Root", "Body", "Head", "FrontLegs", "HindLegs", "Tail" },
+                RunCycleSpec.BoneNames,
+                "bone order is part of the contract: the first bone carries the bob and the "
+                + "generator authors the rig in this order");
             Assert.IsFalse(RunCycleSpec.RootMotion, "root motion stays off; PlayerMover owns speed");
-            Assert.IsFalse(RunCycleSpec.HasEmbeddedAnimation,
-                "Cat.fbx ships no clip this batch (skinning is explicitly out of scope)");
+            Assert.IsTrue(RunCycleSpec.HasEmbeddedAnimation,
+                "Cat.fbx now ships the rig and the Run clip; the runtime animates it with a "
+                + "Legacy Animation component");
             Assert.AreEqual("+Z", RunCycleSpec.ForwardAxis);
+
+            // The clip's keyframes: one frame per pose of the sheet, plus the frame that closes
+            // the loop with the Contact pose again.
+            var keyed = RunCycleSpec.KeyedFrames();
+            Assert.AreEqual(RunCycleSpec.PoseCount + 1, keyed.Length,
+                "one keyframe per pose, plus the loop-closing frame");
+            CollectionAssert.AllItemsAreUnique(keyed, "two poses cannot share a frame");
+            Assert.AreEqual(0, keyed[0], "the first pose is keyed on frame 0");
+            for (int index = 0; index < RunCycleSpec.PoseCount; index++)
+            {
+                Assert.AreEqual(RunCycleSpec.FrameOf(RunCycleSpec.PoseOrder[index]), keyed[index],
+                    $"pose {index} must be keyed on the frame RunCycleSpec.FrameOf names");
+            }
+
+            Assert.AreEqual(RunCycleSpec.FrameCount, keyed[keyed.Length - 1],
+                "the closing key sits on the last frame of the cycle, so the loop is 0.5 s");
         }
 
         [Test]
@@ -297,6 +319,13 @@ namespace CatDash.Art.Tests
 
             var descendants = cat.GetComponentsInChildren<Transform>(true)
                 .Where(transform => transform != cat.transform)
+                .ToArray();
+
+            // The rig now lives in the same hierarchy, so the island set is read as "the
+            // descendants that carry a mesh" instead of "every descendant": the six bones
+            // (RunCycleSpec.BoneNames) and the armature node are transforms without a renderer.
+            var islands = descendants
+                .Where(transform => transform.GetComponent<Renderer>() != null)
                 .Select(transform => transform.name)
                 .ToArray();
 
@@ -307,13 +336,238 @@ namespace CatDash.Art.Tests
                 "Body", "Neck", "Head", "EyeL", "EyeR", "Muzzle",
                 "EarL", "EarR", "LegFrontL", "LegFrontR", "LegHindL", "LegHindR", "Tail",
             };
-            CollectionAssert.AreEquivalent(expected, descendants,
+            CollectionAssert.AreEquivalent(expected, islands,
                 "the cat's island set changed; RunCycleSpec's bone mapping assumes exactly these "
-                + "thirteen objects below the root");
+                + "thirteen mesh objects below the root");
             foreach (var name in expected)
             {
-                CollectionAssert.Contains(descendants, name,
+                CollectionAssert.Contains(islands, name,
                     $"Cat.fbx lost the '{name}' object; RunCycleSpec assumes it exists");
+            }
+
+            // The rig itself: exactly the six contracted bones, and every island hanging off
+            // the bone RunCycleSpec names for it (this is the rigid bone parenting the runtime
+            // and the clip depend on — a flat hierarchy would animate nothing).
+            // A bone has no renderer (the mesh always sits on the island of the same name for
+            // Body and Head), so the rig is read as "the renderer-less transforms whose names
+            // are in the contract" — otherwise the islands would be counted as bones too.
+            var boneNames = descendants
+                .Where(transform => transform.GetComponent<Renderer>() == null
+                                    && System.Array.IndexOf(RunCycleSpec.BoneNames,
+                                        transform.name) >= 0)
+                .Select(transform => transform.name)
+                .ToArray();
+            CollectionAssert.AreEquivalent(RunCycleSpec.BoneNames, boneNames,
+                "Cat.fbx must carry exactly RunCycleSpec.BoneNames as transforms (no leaf-bone "
+                + "extras, none missing)");
+
+            var boneOfIsland = new Dictionary<string, string>
+            {
+                { "Body", "Body" }, { "Neck", "Body" },
+                { "Head", "Head" }, { "EyeL", "Head" }, { "EyeR", "Head" },
+                { "Muzzle", "Head" }, { "EarL", "Head" }, { "EarR", "Head" },
+                { "LegFrontL", "FrontLegs" }, { "LegFrontR", "FrontLegs" },
+                { "LegHindL", "HindLegs" }, { "LegHindR", "HindLegs" },
+                { "Tail", "Tail" },
+            };
+            foreach (var island in descendants.Where(t => t.GetComponent<Renderer>() != null))
+            {
+                var drivingBone = AncestorBone(island);
+                Assert.AreEqual(boneOfIsland[island.name], drivingBone,
+                    $"'{island.name}' is not parented to its contracted bone; one island = one "
+                    + "bone means the rig moves it only through that transform");
+            }
+
+            // The whole rig hangs off the root: every bone must be a descendant of it, so the
+            // root transform still moves the cat as a unit.
+            foreach (var boneName in RunCycleSpec.BoneNames)
+            {
+                var bone = descendants.First(transform => transform.name == boneName
+                                                          && transform.GetComponent<Renderer>() == null);
+                Assert.IsTrue(bone.IsChildOf(cat.transform) || bone == cat.transform,
+                    $"bone '{boneName}' is not below the imported root, so the root would not "
+                    + "move the cat");
+            }
+        }
+
+        /// <summary>
+        /// The contracted bone a mesh island is rigidly parented to, found by walking up: the
+        /// importer may keep the island directly under the bone or add nothing of its own, and
+        /// the check must not care which.
+        /// </summary>
+        private static string AncestorBone(Transform island)
+        {
+            for (var current = island.parent; current != null; current = current.parent)
+            {
+                if (System.Array.IndexOf(RunCycleSpec.BoneNames, current.name) >= 0)
+                {
+                    return current.name;
+                }
+            }
+
+            return null;
+        }
+
+        // ---- embedded run clip --------------------------------------------------
+
+        private static AnimationClip LoadRunClip()
+        {
+            var clips = AssetDatabase.LoadAllAssetsAtPath($"{GeneratedFolder}/Cat.fbx")
+                .OfType<AnimationClip>()
+                .Where(clip => !clip.name.StartsWith("__preview__"))
+                .ToArray();
+            Assert.IsNotEmpty(clips,
+                "Cat.fbx imported with no AnimationClip; check importAnimation/animationType in "
+                + "Assets/Art/Generated/Cat.fbx.meta");
+            return clips.FirstOrDefault(clip => clip.name == RunCycleSpec.ClipName);
+        }
+
+        [Test]
+        public void Cat_FbxImportsTheRunClip()
+        {
+            var clip = LoadRunClip();
+            Assert.IsNotNull(clip,
+                $"Cat.fbx must import the '{RunCycleSpec.ClipName}' clip: Unity names a Legacy "
+                + "clip after the FBX take, and the generator names the take Run");
+            Assert.IsTrue(clip.legacy,
+                "the clip must be a Legacy clip (animationType: 1 / Legacy in the fbx.meta); a "
+                + "Mecanim clip would need an Animator and an Avatar the cat does not have");
+            Assert.AreEqual(RunCycleSpec.LengthSeconds, clip.length, 1e-3f,
+                "the clip must span one 12-frame run cycle at 24 fps");
+            Assert.IsTrue(clip.wrapMode == WrapMode.Loop,
+                $"the clip must loop (animationWrapMode in the fbx.meta), found {clip.wrapMode}");
+        }
+
+        [Test]
+        public void RunClip_KeysOneKeyframePerPose()
+        {
+            var clip = LoadRunClip();
+            Assert.IsNotNull(clip, "Cat.fbx must import the Run clip before its keys can be read");
+
+            var bindings = AnimationUtility.GetCurveBindings(clip);
+            Assert.IsNotEmpty(bindings, "the imported clip carries no curves");
+
+            var expectedKeyed = RunCycleSpec.KeyedFrames()
+                .Select(frame => KeyTimeKey(frame / (float)RunCycleSpec.SampleRate))
+                .ToArray();
+            var keyedTimes = new SortedSet<int>();
+            foreach (var binding in bindings)
+            {
+                var curve = AnimationUtility.GetEditorCurve(clip, binding);
+                Assert.IsNotNull(curve,
+                    $"{binding.path}.{binding.propertyName} could not be read; the keyframe "
+                    + "contract needs the authored keys (see animationCompression in the fbx.meta)");
+                foreach (var key in curve.keys)
+                {
+                    keyedTimes.Add(KeyTimeKey(key.time));
+                    Assert.IsTrue(System.Array.IndexOf(expectedKeyed, KeyTimeKey(key.time)) >= 0,
+                        $"{binding.path}.{binding.propertyName} is keyed at {key.time:F4} s, which "
+                        + "is not a pose frame — the clip must be keyed on the poses, not baked");
+                }
+
+                // The loop closes: the last key repeats the first, or a 0.5 s loop would pop.
+                Assert.AreEqual(curve.keys[0].value, curve.keys[curve.length - 1].value, 1e-5f,
+                    $"{binding.path}.{binding.propertyName} does not end where it starts, so the "
+                    + "run cycle would pop instead of looping");
+            }
+
+            // Four poses + the closing repeat == PoseCount + 1 distinct keyframes, spread over
+            // every animated curve: this is the "one keyframe per pose" contract. The four pose
+            // keyframes themselves are exactly PoseCount, one per pose of the reference sheet.
+            CollectionAssert.AreEqual(expectedKeyed, keyedTimes.ToArray(),
+                $"the clip is keyed at {keyedTimes.Count} distinct times over {bindings.Length} "
+                + "curves; RunCycleSpec keyed the four poses plus the frame that closes the loop");
+            Assert.AreEqual(RunCycleSpec.PoseCount + 1, keyedTimes.Count,
+                "the four pose keyframes plus one loop-closing keyframe are the whole clip");
+        }
+
+        /// <summary>
+        /// Key times are compared as rounded integers (1e-4 s) so the assertion cannot fail on
+        /// float noise from the importer's second -> frame conversion.
+        /// </summary>
+        private static int KeyTimeKey(float seconds)
+        {
+            return Mathf.RoundToInt(seconds * 10000f);
+        }
+
+        [Test]
+        public void RunClip_BobLandsOnTheMeshAtEveryPose()
+        {
+            var model = AssetDatabase.LoadAssetAtPath<GameObject>($"{GeneratedFolder}/Cat.fbx");
+            var clip = LoadRunClip();
+            Assert.IsNotNull(model, "Cat.fbx did not import");
+            Assert.IsNotNull(clip, "Cat.fbx must import the Run clip");
+
+            var instance = Object.Instantiate(model);
+            instance.hideFlags = HideFlags.HideAndDontSave;
+            try
+            {
+                var transforms = instance.GetComponentsInChildren<Transform>(true);
+                // The Body island, not the Body BONE: the two share a name, and the contract
+                // is that the spec's number reaches the MESH.
+                var body = transforms.First(t => t.name == "Body"
+                                                 && t.GetComponent<Renderer>() != null);
+                var bobBone = transforms.First(t => t.name == RunCycleSpec.BoneNames[0]);
+
+                clip.SampleAnimation(instance, 0f);
+                float bodyBaseline = body.position.y;
+                var boneBaseline = bobBone.localPosition;
+
+                var offsets = new float[RunCycleSpec.PoseCount];
+                for (int index = 0; index < RunCycleSpec.PoseCount; index++)
+                {
+                    var pose = RunCycleSpec.PoseOrder[index];
+                    float phase = RunCycleSpec.PhaseOf(pose);
+                    float expected = RunCycleSpec.BodyBobMetresAt(phase);
+                    clip.SampleAnimation(instance, phase * RunCycleSpec.LengthSeconds);
+
+                    // Measured on a MESH island, not on the bone: this is the "the spec number
+                    // reaches the model" half of the contract.
+                    float meshOffset = body.position.y - bodyBaseline;
+                    Assert.AreEqual(expected, meshOffset, 1e-4f,
+                        $"pose {pose}: the Body island sits {meshOffset:F5} m above the contact "
+                        + $"height, RunCycleSpec.BodyBobMetresAt says {expected:F5} m");
+
+                    // ...and keyed on the root bone as a translation of exactly that size, so the
+                    // whole cat (legs included) rides the bob.
+                    float boneOffset = (bobBone.localPosition - boneBaseline).magnitude;
+                    Assert.AreEqual(expected, boneOffset, 1e-4f,
+                        $"pose {pose}: the {RunCycleSpec.BoneNames[0]} bone is displaced "
+                        + $"{boneOffset:F5} m, RunCycleSpec says {expected:F5} m");
+
+                    offsets[index] = meshOffset;
+                }
+
+                // Two extremes per cycle: the poses RunCycleSpec puts on the baseline measure
+                // zero and the ones it puts at the peak measure BodyBobMetres, so the two groups
+                // cannot be equal (the "Contact/Down vs Up/Air" split, read off the mesh).
+                float highest = offsets.Max();
+                float lowest = offsets.Min();
+                Assert.AreEqual(0f, lowest, 1e-4f,
+                    "at least one pose must sit exactly on the contact height");
+                Assert.AreEqual(RunCycleSpec.BodyBobMetres, highest, 1e-4f,
+                    "at least one pose must reach BodyBobMetres above the contact height");
+                Assert.IsTrue(highest - lowest > 1e-4f,
+                    "the bob's extremes collapsed: the clip would look like it never leaves the "
+                    + "ground");
+
+                // Not a bob-only rig: the front-leg island is rigidly parented to a bone the
+                // clip swings by LegSwingDegrees, so its world rotation has to change between
+                // the contact pose and the next one.
+                var frontLeg = transforms.First(t => t.name == "LegFrontL");
+                clip.SampleAnimation(instance,
+                    RunCycleSpec.PhaseOf(RunCycleSpec.RunPose.Contact) * RunCycleSpec.LengthSeconds);
+                var legAtContact = frontLeg.rotation;
+                clip.SampleAnimation(instance,
+                    RunCycleSpec.PhaseOf(RunCycleSpec.RunPose.Down) * RunCycleSpec.LengthSeconds);
+                float legSwing = Quaternion.Angle(legAtContact, frontLeg.rotation);
+                Assert.IsTrue(legSwing > RunCycleSpec.LegSwingDegrees * 0.5f,
+                    $"the front leg rotated {legSwing:F2} deg between two poses; the clip must "
+                    + $"swing it up to {RunCycleSpec.LegSwingDegrees:F0} deg");
+            }
+            finally
+            {
+                Object.DestroyImmediate(instance);
             }
         }
     }
