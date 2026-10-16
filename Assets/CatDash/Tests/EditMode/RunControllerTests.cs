@@ -126,4 +126,18 @@ public class RunControllerTests
         UnityEngine.Object.DestroyImmediate(go2);
         RunController.ResetStatics();
     }
+
+    [Test]
+    public void Registration_NotDropped_AfterMissedScan()
+    {
+        RunController.ResetStatics();
+        Assert.IsNull(RunController.Active);
+
+        var go = new GameObject("Late");
+        var late = go.AddComponent<RunController>();
+        Assert.AreEqual(late, RunController.Active);
+
+        UnityEngine.Object.DestroyImmediate(go);
+        RunController.ResetStatics();
+    }
 }

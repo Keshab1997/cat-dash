@@ -26,12 +26,8 @@ namespace CatDash.Gameplay
                 }
                 return active;
             }
-            private set
-            {
-                if (value != null && activeScanned) return;
-                active = value;
-                if (value != null) activeScanned = false;
-            }
+            // registration is the setter's job; the lazy scan cache must never block OnEnable registration
+            private set { active = value; }
         }
 
         [SerializeField] private RunTuning tuning = new RunTuning();
