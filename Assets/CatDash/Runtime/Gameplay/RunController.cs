@@ -7,8 +7,20 @@ namespace CatDash.Gameplay
     /// <summary>Owns run lifecycle, distance score and speed ramp. Owner: GAMEPLAY.</summary>
     public class RunController : MonoBehaviour
     {
+        private static RunController active;
         /// <summary>Most recently enabled controller, or null. Cleared by OnDisable/ResetStatics.</summary>
-        public static RunController Active { get; private set; }
+        public static RunController Active
+        {
+            get
+            {
+                if (active == null)
+                {
+                    active = UnityEngine.Object.FindFirstObjectByType<RunController>();
+                }
+                return active;
+            }
+            private set { active = value; }
+        }
 
         [SerializeField] private RunTuning tuning = new RunTuning();
         [SerializeField] private Transform player;
@@ -49,8 +61,8 @@ namespace CatDash.Gameplay
         }
 
         private void OnEnable() { Active = this; }
-        private void OnDisable() { if (Active == this) Active = null; }
-        private void OnDestroy() { if (Active == this) Active = null; }
+        private void OnDisable() { if (active == this) active = null; }
+        private void OnDestroy() { if (active == this) active = null; }
 
         public void BeginRun()
         {
@@ -122,11 +134,15 @@ namespace CatDash.Gameplay
         public void OnApplicationPause(bool pauseStatus)
         {
             paused = pauseStatus;
+            var input = UnityEngine.Object.FindFirstObjectByType<RunInput>();
+            if (input != null) input.OnApplicationPause(pauseStatus);
         }
 
         public void OnApplicationFocus(bool hasFocus)
         {
             paused = !hasFocus;
+            var input = UnityEngine.Object.FindFirstObjectByType<RunInput>();
+            if (input != null) input.OnApplicationFocus(hasFocus);
         }
 
         private void NotifyStateChanged()
