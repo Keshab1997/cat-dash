@@ -23,6 +23,9 @@ namespace CatDash.Gameplay
         /// <summary>Test seam: exercise registration without relying on Unity messages on EditMode GameObjects.</summary>
         public static void RegisterForTest(RunController controller) { Active = controller; }
 
+        /// <summary>Test seam: registration state using Unity's destroyed-object-aware equality.</summary>
+        public static bool HasActiveForTest { get { return Active != null; } }
+
         [SerializeField] private RunTuning tuning = new RunTuning();
         [SerializeField] private Transform player;
 
