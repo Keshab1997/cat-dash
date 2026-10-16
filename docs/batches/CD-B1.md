@@ -106,6 +106,16 @@ a frozen member. Implementations live in the owning agent's files.
 
 ## Known risks carried into the batch
 
+### 2026-10-16 — A11 reviewed and MERGED: `845bce304293c6f092fcc8b5fe27784baa53eb97` — CD-B1 code work complete
+A11 `0064d0e08773bb087404e1292c7970fa2ea23a73` (base `a4427ea`, no conflicts, paths only `RunInput.cs`, `RunController.cs`, `RunInputTests.cs`).
+Reviewed the guard rather than trusting it: the ping-pong closes on `RunInput`'s side only — controller→input lands while `syncing == true` and returns
+immediately — so exactly one `rc.OnApplicationPause` per external call, which `SinglePauseCall_DoesNotRecurse` (`PauseCallCount == before + 1`) now proves;
+`finally { syncing = false; }` is real (a leaked flag would have turned `Resume_AllowsDistanceAdvance_AfterInputPause` red). The last surviving failure
+(`RunInputTests.cs:72`) is fixed by driving `rc.paused` from the input side. No assertion weakened, nothing `[Ignore]`d.
+Batch state: 8 CI failures from run 4 all addressed (7 by A10, 2 art ones by B3, the last by A11); next owner run of stage `full` is the verdict — expected
+EditMode 88 tests / 87 pass + 1 intentional `[Explicit]` skip (the art additions grow the total above run 4's 88) and PlayMode 3/3. Still NOT RUN by
+definition: real device FPS/perf and the visual gate (owner's Unity capture of the merged SHA).
+
 ### 2026-10-16 — A10 and B3 reviewed and MERGED (`449f730986130f3b9a7384761444765b9cf5fad9`); one failure expected to survive
 B3 `406774e6cd756f6f1773ecbf79845814d1654a06`: raised-cosine bob `BodyBobMetres * (1 - cos(angle)) / 2` with a `1e-6` contact snap, plus
 `ImportedRootName = "Cat"` documenting that Unity names the FBX root after the file; the hierarchy assert now targets descendants, so the
