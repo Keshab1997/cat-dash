@@ -106,6 +106,17 @@ a frozen member. Implementations live in the owning agent's files.
 
 ## Known risks carried into the batch
 
+### 2026-10-16 — run 5 (`38850014512`, SHA `43bcfab6`): 89/91 + PlayMode 3/3 → A12 rejected, A13 merged (`18220bde96f6186455a982abf67ee15e88676eaf`)
+Run 5 cleared 7 of run 4's 8 failures (A10 lazy lookup, B3 art, A11 two-way pause sync all green). One new red: `RunControllerTests.cs:104`
+`Assert.IsNull(RunController.Active)` got `<RunControllerTests (…RunController)>` — A10's lazy rescan *resurrected the destroyed controller*.
+A12 `1940bf7d` fixed the resurrection (its `activeScanned` cache is correct and I re-verified all six assertions) but introduced a second bug:
+`private set { if (value != null && activeScanned) return; … }` silently drops registration whenever the getter had already been touched — and in the real
+scene the HUD/Spawner `Update` touches `Active` before the controller registers, so `Active` would stay null forever (game dead, tests possibly still green).
+**NOT merged.** Captain-side emulation of Unity `==`/fake-null semantics was what caught it: `Registration_NotDropped` fails on A12, passes on A13.
+A13 `825069ce` (same branch, files: `RunController.cs`, `RunControllerTests.cs`, zero conflicts, preflight 0) keeps A12's getter and reverts the setter to
+`private set { active = value; }`; it also adds `Registration_NotDropped_AfterMissedScan`. Note: with `OnDisable`/`OnDestroy` clearing `active` directly, the
+getter's fake-null branch is defensive-only (unreachable in tests) — harmless, left in place. Owner dispatched run 6 on `18220bde` with stage `full`.
+
 ### 2026-10-16 — A11 reviewed and MERGED: `845bce304293c6f092fcc8b5fe27784baa53eb97` — CD-B1 code work complete
 A11 `0064d0e08773bb087404e1292c7970fa2ea23a73` (base `a4427ea`, no conflicts, paths only `RunInput.cs`, `RunController.cs`, `RunInputTests.cs`).
 Reviewed the guard rather than trusting it: the ping-pong closes on `RunInput`'s side only — controller→input lands while `syncing == true` and returns
