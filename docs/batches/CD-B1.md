@@ -106,6 +106,19 @@ a frozen member. Implementations live in the owning agent's files.
 
 ## Known risks carried into the batch
 
+### 2026-10-16 — CI GREEN: run 9 `38855390443` on `fdcdf7106b38755424f9a3e1d77754ceceb06957` — job `batch` success
+EditMode 93 tests: **92 passed, 0 failed, 1 skipped** (the intentional `[Explicit]` `CatDashSceneGeneratorTests.GeneratedScene_Loads_As_A_SceneAsset`);
+PlayMode **3/3** (`RearFollowCameraFollowTests` green). `Cheap source preflight` 0 errors, `Require real, nonempty passing Unity results` success,
+build/provenance/upload steps `skipped` because stage was `full` (tests only), `internal` job skipped — no artifact was published, as designed.
+Trail of the `Active` saga (all merged, in order): A10 lazy lookup → A11 two-way pause sync + guard → A13 setter-guard removal (A12 rejected: its
+`activeScanned` cache leaked across fixtures and dropped later registrations) → A14 cache deleted + `RunInputTests` `ResetStatics` isolation →
+A15 `RegisterForTest` seam → A16 destroy-the-fixture-inside-the-test isolation → A17 `HasActiveForTest` seam (`Active != null`, i.e. Unity destroyed-aware
+equality) + destroy-before-assert order. Lesson recorded for future batches: **an assert about a scene-discovered reference must use Unity's `==`, not
+NUnit `IsNull`/`AreEqual(…, null)`, and a test that destroys a controller must destroy it before asserting the unregistered state.**
+A-side batch work: `RunControllerTests`/`RunInputTests`/`ObstacleSpawnerTests` + `RunController`/`RunInput` are green and stable across runs 5-9;
+`PauseCallCount` and `RegisterForTest`/`HasActiveForTest` are documented test seams, nothing is `[Ignore]`d or weakened.
+Still open after this: owner-captured Unity/device visual gate for `Cat.fbx` (NOT RUN), real device FPS (NOT RUN), and B's rig + run-cycle block (B4).
+
 ### 2026-10-16 — runs 6 & 7, A12/A13/A14 history, A15 merged (`3847b665fca50a0d1f2416135d170e23e94719cd`)
 Captain now drives CI directly (`workflow_dispatch`, stage `full`) and reads the artifact XML — no owner round trip.
 Run 6 `38850014512`(SHA `43bcfab6`) → 89/91 + PlayMode 3/3: the `private static bool activeScanned` cache I prescribed in A12 leaked across fixtures
