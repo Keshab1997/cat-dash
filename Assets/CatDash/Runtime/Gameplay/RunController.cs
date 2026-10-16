@@ -37,6 +37,8 @@ namespace CatDash.Gameplay
 
         public RunState State { get { return state; } }
         public bool IsRunning { get { return state == RunState.Running; } }
+        /// <summary>Test seam: number of times OnApplicationPause has been invoked.</summary>
+        public int PauseCallCount { get; private set; }
         public float DistanceMeters { get { return distanceMeters; } }
         public float SpeedMetersPerSecond
         {
@@ -133,6 +135,7 @@ namespace CatDash.Gameplay
 
         public void OnApplicationPause(bool pauseStatus)
         {
+            PauseCallCount++;
             paused = pauseStatus;
             var input = UnityEngine.Object.FindFirstObjectByType<RunInput>();
             if (input != null) input.OnApplicationPause(pauseStatus);
