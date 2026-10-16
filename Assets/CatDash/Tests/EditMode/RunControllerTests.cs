@@ -97,6 +97,8 @@ public class RunControllerTests
     [Test]
     public void OnDisable_ClearsActive_WhenControllerDestroyed()
     {
+        UnityEngine.Object.DestroyImmediate(go);
+        rc = null;
         RunController.ResetStatics();
         var go2 = new GameObject("ActiveClear");
         var rc2 = go2.AddComponent<RunController>();
@@ -109,6 +111,8 @@ public class RunControllerTests
     [Test]
     public void ResurrectedScan_DoesNotHappen()
     {
+        UnityEngine.Object.DestroyImmediate(go);
+        rc = null;
         RunController.ResetStatics();
         var go1 = new GameObject("C1");
         var c1 = go1.AddComponent<RunController>();
@@ -134,6 +138,8 @@ public class RunControllerTests
     [Test]
     public void Registration_NotDropped_AfterMissedScan()
     {
+        UnityEngine.Object.DestroyImmediate(this.go);
+        rc = null;
         RunController.ResetStatics();
         var go = new GameObject("Late");
         var late = go.AddComponent<RunController>();
