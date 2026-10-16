@@ -91,6 +91,12 @@ Actions → **Unity Android** → Run workflow (main):
   artifact (this repo's addition, not kit v1); no Play upload, version_code optional (defaults to 1).
 - internal: full tests once → signed AAB → environment gate → internal testing upload.
 
+`build` and `apk` additionally require the four signing secrets `ANDROID_KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`,
+`KEY_ALIAS`, `KEY_PASSWORD` — none of them exist on this repo yet (proven by a throwaway probe run of `tool/ci_gate.py`
+that printed only secret NAMES: `UNITY_*` = SET, all four keystore + `PLAY_SERVICE_ACCOUNT_JSON` = MISSING), so any
+stage past `full` fails at `Fail fast` in ~15 s. For sideload-only phone testing any PKCS12 keystore works; keep the
+Play upload keystore separate and never reuse it for a debug artifact.
+
 Build/internal require explicit version_code greater than ALL previously uploaded
 Play codes, plus supported target_api. This v1 does not query Play for the maximum:
 owner must check Console. Duplicate codes fail safely at Play; no auto-increment/retry.
