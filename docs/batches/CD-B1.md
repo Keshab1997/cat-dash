@@ -106,6 +106,21 @@ a frozen member. Implementations live in the owning agent's files.
 
 ## Known risks carried into the batch
 
+### 2026-10-16 — FOURTH CI run (111b67ae, run 38808616897): real numbers. PlayMode 3/3 green, EditMode 79/88 (1 intentional skip)
+Everything compiles now and C2's recycle fix is green in CI; the camera convergence test passes. Three classes of failure, none in C:
+1. **A8's EditMode lifecycle fix did not work — and that is my misdiagnosis.** All five `RunController`/`RunInput` failures are byte-identical
+   to run 2 (`Active` still null at `RunControllerTests.cs:102`; `IsRegistered` false at `RunInputTests.cs:146`; the 4 resume cases unchanged):
+   in this Unity, `Awake` is not invoked by `AddComponent` onto the inactive test-scene GameObject either, so moving the binding there bought
+   nothing. Merged on reasoning with no local compiler to check it — recorded as a Captain error, and A10 must not rely on any Unity message
+   (Awake/OnEnable/Start) for test setup: it must be an explicit call from `[SetUp]` or the component finding its own peer at use time.
+2. **B2 introduced two art-contract test bugs of its own** (new in this run): `Cat_KeepsItsPartHierarchyForTheFutureRig` asserts a `CatDash_Cat`
+   object that Unity's importer never creates — FBX root is named after the file (`Cat`), and the actual names show all 13 islands present, so the
+   assertion is wrong, not the mesh; and `RunCycleSpec_BodyBobPeaksTwicePerCycle` expects 0.015 at a quarter cycle while
+   `BodyBobMetresAt` = `0.015*Sin(2*2π*cycles)` returns ~0 there (1.8e-18 = float rounding of sin π) — a genuine half-cycle phase error in the
+   bob curve (contact should dip, peak between), so the curve needs `-Cos`, not the test being deleted.
+3. The `[Explicit]` scene test skip is by design (no committed `.unity`).
+Gate status: Unity compile+EditMode+PlayMode now **measured** on `111b67ae`; visual gate and device perf remain NOT RUN.
+
 ### 2026-10-16 — A9 and B2 reviewed and MERGED: main `5f4a5e62d4d6766a45014b4901a7d9387104db79`
 - A9 `f0b15f1cc14467f990dbb2449c32a4bf22a50ad2` (one line, `Debug.Log` → `UnityEngine.Debug.Log`; branch still based on `4e115ba`,
   C2's content preserved by merge, `merge-tree` no conflicts). My own review miss is recorded in the previous section — the fix is exactly
