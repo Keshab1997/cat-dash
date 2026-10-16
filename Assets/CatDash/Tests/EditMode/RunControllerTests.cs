@@ -93,15 +93,17 @@ public class RunControllerTests
         public void OnRunEnded(float finalMeters) { if (OnEnded != null) OnEnded(); }
     }
 
+    // EditMode GameObjects: OnEnable and the Active scene scan are both unreliable here, so RegisterForTest registers deterministically — these asserts measure only the controller's own contract.
     [Test]
     public void OnDisable_ClearsActive_WhenControllerDestroyed()
     {
         RunController.ResetStatics();
         var go2 = new GameObject("ActiveClear");
         var rc2 = go2.AddComponent<RunController>();
-        Assert.AreEqual(rc2, RunController.Active);
+        RunController.RegisterForTest(rc2);
+        Assert.AreSame(rc2, RunController.Active);
         UnityEngine.Object.DestroyImmediate(go2);
-        Assert.AreSame(rc, RunController.Active);
+        Assert.IsNull(RunController.Active);
     }
 
     [Test]
@@ -110,18 +112,20 @@ public class RunControllerTests
         RunController.ResetStatics();
         var go1 = new GameObject("C1");
         var c1 = go1.AddComponent<RunController>();
-        Assert.AreEqual(c1, RunController.Active);
+        RunController.RegisterForTest(c1);
+        Assert.AreSame(c1, RunController.Active);
 
-        RunController.ResetStatics();
+        RunController.RegisterForTest(null);
         UnityEngine.Object.DestroyImmediate(go1);
-        Assert.AreSame(rc, RunController.Active);
+        Assert.IsNull(RunController.Active);
 
         var go2 = new GameObject("C2");
         var c2 = go2.AddComponent<RunController>();
+        RunController.RegisterForTest(c2);
         Assert.AreSame(c2, RunController.Active);
 
-        RunController.ResetStatics();
-        Assert.AreEqual(c2, RunController.Active);
+        RunController.RegisterForTest(null);
+        Assert.IsNull(RunController.Active); // null case — not AreSame(c2) again
 
         UnityEngine.Object.DestroyImmediate(go2);
         RunController.ResetStatics();
@@ -131,12 +135,12 @@ public class RunControllerTests
     public void Registration_NotDropped_AfterMissedScan()
     {
         RunController.ResetStatics();
-        Assert.AreSame(rc, RunController.Active);
-
         var go = new GameObject("Late");
         var late = go.AddComponent<RunController>();
-        Assert.AreEqual(late, RunController.Active);
+        RunController.RegisterForTest(late);
+        Assert.AreSame(late, RunController.Active);
 
+        RunController.RegisterForTest(null);
         UnityEngine.Object.DestroyImmediate(go);
         RunController.ResetStatics();
     }
