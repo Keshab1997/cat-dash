@@ -11,7 +11,8 @@ SECRET_SUFFIXES = {'.jks', '.keystore', '.ulf', '.alf', '.p12', '.pem'}
 BANNED_DIRS = {'library', 'temp', 'obj', 'logs', 'usersettings', 'build', 'builds', 'secrets'}
 SECRET_PATTERNS = [re.compile(r'gh[pousr]_[A-Za-z0-9]{30,}'),
                    re.compile(r'-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----'),
-                   re.compile(r'"type"\s*:\s*"service_account"')]
+                   re.compile(r'"type"\s*:\s*"service_account"'),
+                   re.compile(r'\b(?:storePassword|keyPassword|storekey|keyAlias)\s*[=:]\s*[\'"][^\'"]+[\'"]')]
 
 def inspect(root, files):
     errors=[]
