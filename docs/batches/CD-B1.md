@@ -106,6 +106,16 @@ a frozen member. Implementations live in the owning agent's files.
 
 ## Known risks carried into the batch
 
+### 2026-10-16 — phone-APK stage wired, first dispatch died in the gate; added `.github/workflows/kit-stage-probe.yml`
+Cherry-picking `54c971c` onto the green checkpoint conflicted only in `docs/batches/CD-B1.md` (both sides insert a section at the same anchor), so
+`ci/build-check` = `d3420ed76c20a87e0420610c4a916f0c179290be` = `fdcdf710` + the workflow/gate files only. Dispatching `stage=apk` there returned **HTTP 422**
+until the branch actually carried the new `options:` list — `workflow_dispatch` validates inputs against the workflow file *of the dispatched ref*, and
+`ref` must be a branch/tag, never a raw SHA. With the file in place the run dispatched but failed in ~15 s at `Fail fast — inputs and required secrets`, i.e.
+`tool/ci_gate.py` found a missing secret (its ERROR lines are not in the annotations API, and job logs are 401 to this token — known limitation).
+To name the missing secret without me ever reading a value, I added `kit-stage-probe.yml`: it prints secret NAMES (SET/MISSING) and each stage's gate verdict
+into the job summary, then nothing else. Delete it once the answer is known. Note for the owner: `ci/build-check` is my scratch ref for build experiments — it is
+not agent-owned, do not push to it.
+
 ### 2026-10-16 — run 10 (`dbe0ccb9`): 93/96 — B4's rig imports, 2 of B's own art tests are red; owner approved a phone-APK stage in CI
 Red tests, both about how Unity re-times the clip, not about the model: `RunClip_KeysOneKeyframePerPose` fails because the FBX importer **bakes one key per
 frame** (`resampleCurves: 0` = "Bake Into Clip", it does not preserve authored keys) so `Head.m_LocalRotation.x` is keyed at 0.0417 s; and

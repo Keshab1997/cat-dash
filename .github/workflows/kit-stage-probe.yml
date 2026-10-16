@@ -1,0 +1,49 @@
+name: Kit stage probe
+# Read-only diagnostic: asks tool/ci_gate.py which inputs/secrets each stage is missing.
+# It never prints a secret value, only names. Safe to delete after use.
+on:
+  workflow_dispatch:
+jobs:
+  probe:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Which secrets exist (names only) and what each stage would complain about
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          python3 - <<'PYCODE'
+          import json,os
+          from pathlib import Path
+          import sys
+          sys.path.insert(0,'tool')
+          from ci_gate import validate
+          keys=['UNITY_LICENSE','UNITY_EMAIL','UNITY_PASSWORD','ANDROID_KEYSTORE_BASE64',
+                'KEYSTORE_PASSWORD','KEY_ALIAS','KEY_PASSWORD','PLAY_SERVICE_ACCOUNT_JSON']
+          lines=["## Kit stage probe","",'Secrets present (names only):']
+          for k in keys:
+              lines.append(f"- {k}: {'SET' if os.environ.get(k) else 'MISSING'}")
+          config=json.loads(Path('unity-kit.json').read_text())
+          lines.append('')
+          lines.append('Gate verdict per stage (target_api=36, version_code=100):')
+          full={k:v for k,v in os.environ.items() if v}
+          for stage in ['preflight','full','build','apk','internal']:
+              env=dict(full); env['KIT_STAGE']=stage; env['KIT_TARGET_API']='36'
+              env['KIT_VERSION_CODE']='100'; env['KIT_CONFIRM']='UPLOAD INTERNAL'
+              env['GITHUB_REF']='refs/heads/main'
+              errs=validate(env,config)
+              lines.append(f"- {stage}: {'OK' if not errs else '; '.join(errs)}")
+          apk=dict(full); apk['KIT_STAGE']='apk'; apk['KIT_TARGET_API']='36'
+          apk['KIT_VERSION_CODE']=''
+          lines.append(f"- apk (no version_code, as dispatch will send): {'OK' if not validate(apk,config) else '; '.join(validate(apk,config))}")
+          Path(os.environ.get('GITHUB_STEP_SUMMARY','/tmp/s.md')).write_text('\n'.join(lines)+'\n')
+          print('\n'.join(lines))
+          PYCODE
