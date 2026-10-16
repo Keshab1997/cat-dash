@@ -177,6 +177,26 @@ named in the spec list. B did not touch `SidePhaseOffset` semantics, only docume
 B's own stated limit: everything is verified in Blender + by reading the FBX bytes, **Unity import is NOT proven** — Legacy clip creation, the resulting clip
 name and the `optimizeBones` interaction are exactly what CI's art tests and the owner's Editor capture must confirm. Next: run 10 on this SHA.
 
+### 2026-10-16 — phone pipeline works end to end in CI (no secrets), and B5's scale fix landed
+**B5 `8d454bd` reviewed** (pushed straight to main by its owner rather than via `work/agent-b/…` — noted, not repeated): it found the real cause of run 10's
+`Expected: 0.015 / But was: 0.00015` — Blender's exporter baked `Lcl Scaling 100` on every FBX root, so Unity imported a 100× world with animation
+translations divided by 100. Fix is `FBX_SCALE_UNITS` + regenerating all five FBXs (metas/GUIDs unchanged). Its rework of the key-time test is honest about
+why (Unity's Legacy importer bakes to the clip frame rate despite `resampleCurves: 0`), moving placement enforcement to `tool/blender_verify_assets.py`.
+B5 claims "local EditMode: 96 run, 0 failed" — **unverified here, no CI run on it yet**; `df07db8` (preflight rule for hardcoded gradle passwords) is fine.
+**Phone-APK chain, now on main:** `apk` dispatch stage = batch (tests, no keystore needed for it) → `scene` job (`contents: write`; runs
+`CatDashSceneGenerator.GenerateFromMenu` headlessly and commits `Assets/CatDash/Scenes/CatDash.unity` + `.meta` + the *folder* `.meta`, only when untracked —
+game-ci's own default build script reads `EditorBuildSettings.scenes`, which this repo never commits, hence "Cannot build untitled scene" exit 103) → `apk` job
+(`needs: [batch, scene]`) builds through the new `Assets/CatDash/Editor/CatDashPhoneBuild.cs`, which passes the scene path explicitly and writes
+`build/apk/android/Game.apk`; Unity's own debug keystore signs it, so `ANDROID_KEYSTORE_*`/`KEY_*` are required only by `build`/`internal` now.
+Failures paid on the way, all recorded here so they are not repeated: (1) `tool/preflight.py` rejects a new folder without a `folderAsset` .meta — a
+scene-commit step must add it; (2) my first `CatDashPhoneBuild.cs` failed CI compilation with `error CS0103 NamedBuildTarget` (fixed by
+`using UnityEditor.Build;`, cross-checked symbol-by-symbol against the compiling `KitBuild.cs`, and `EditorUserBuildSettings.androidCreateSymbols` was dropped as
+unverifiable here); (3) `workflow_dispatch` needs a branch/tag ref, never a raw SHA, and validates inputs against the workflow file *of that ref*.
+**Proof:** run `38873141217` on `fb7cba15` = batch success (EditMode 96 + PlayMode 3/3 with B4's art), apk success, artifact
+`android-apk-fb7cba15976cf8ee233f111b13f93ffee36a5b5b-1` → single 16,213,340-byte `Game.apk`: `unzip -t` clean, 403 entries, `lib/arm64-v8a` only,
+`classes.dex` + IL2CPP `assets/bin/Data/Managed/`, and an APK Signing Block ("APK Sig Block 42") present 25.8 KB before the central directory, no v1 entries
+⇒ v2/v3 debug signature. `apksigner verify` NOT RUN (no Android SDK in the sandbox); Play QA/device FPS still NOT RUN.
+
 ### 2026-10-16 — CI GREEN: run 9 `38855390443` on `fdcdf7106b38755424f9a3e1d77754ceceb06957` — job `batch` success
 EditMode 93 tests: **92 passed, 0 failed, 1 skipped** (the intentional `[Explicit]` `CatDashSceneGeneratorTests.GeneratedScene_Loads_As_A_SceneAsset`);
 PlayMode **3/3** (`RearFollowCameraFollowTests` green). `Cheap source preflight` 0 errors, `Require real, nonempty passing Unity results` success,
