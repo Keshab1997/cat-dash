@@ -12,6 +12,7 @@ public class RunInputTests
     [SetUp]
     public void SetUp()
     {
+        RunController.ResetStatics();
         go = new GameObject("RunInputTests");
         rc = go.AddComponent<RunController>();
         input = go.AddComponent<RunInput>();
@@ -22,6 +23,7 @@ public class RunInputTests
     public void TearDown()
     {
         if (go != null) UnityEngine.Object.DestroyImmediate(go);
+        RunController.ResetStatics();
     }
 
     [Test]
