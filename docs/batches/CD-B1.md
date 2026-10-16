@@ -106,6 +106,21 @@ a frozen member. Implementations live in the owning agent's files.
 
 ## Known risks carried into the batch
 
+### 2026-10-16 — A10 and B3 reviewed and MERGED (`449f730986130f3b9a7384761444765b9cf5fad9`); one failure expected to survive
+B3 `406774e6cd756f6f1773ecbf79845814d1654a06`: raised-cosine bob `BodyBobMetres * (1 - cos(angle)) / 2` with a `1e-6` contact snap, plus
+`ImportedRootName = "Cat"` documenting that Unity names the FBX root after the file; the hierarchy assert now targets descendants, so the
+13 islands are verified without inventing a `CatDash_Cat` node. I recomputed B's exact-equality test numerically
+(float32(0.015 * (1-cos(π))/2) == 0.014999999664723873 == float32(0.015f), at both 0.25 and 0.75) — the `==` assertions are sound, not luck.
+A10 `a4427ea640ecb87776c3ac5cf910792aa30f55a2` (still based on `f0b15f1`, so it never touched B's files; merged after B3, no conflicts, zero
+overlap): lazy `Active` via `UnityEngine.Object.FindFirstObjectByType<RunController>()` and `RunInput.ResolveController()` — this should clear the
+`Active`-null and `IsRegistered` failures without depending on Awake/OnEnable, and `FindFirstObjectByType` is the correct Unity 6 name
+(`Object.FindFirstObjectByType` exists since 2023.1; the old `FindObjectOfType` is obsolete).
+**Known remaining gap, found in review:** propagation is one-way. `RunController.OnApplicationPause` now drives the sibling `RunInput`, but
+`RunInput.OnApplicationPause/OnApplicationFocus` do nothing about `RunController.paused`, so `RunInputTests.PauseResumeCycle_DistanceStaysAndInputReenabled`
+(`RunInputTests.cs:72`, which only calls `input.OnApplicationPause(true)` before `rc.Tick(0.5f)`) still fails with distance advancing — 7 of 8
+previous failures should go green, this one stays red unless fixed. A11 is that fix. A tiny re-entrancy guard is required (controller → input →
+controller would otherwise ping-pong). Unity run is the only arbiter; visual gate and device perf still NOT RUN.
+
 ### 2026-10-16 — FOURTH CI run (111b67ae, run 38808616897): real numbers. PlayMode 3/3 green, EditMode 79/88 (1 intentional skip)
 Everything compiles now and C2's recycle fix is green in CI; the camera convergence test passes. Three classes of failure, none in C:
 1. **A8's EditMode lifecycle fix did not work — and that is my misdiagnosis.** All five `RunController`/`RunInput` failures are byte-identical
