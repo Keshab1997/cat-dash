@@ -106,6 +106,30 @@ a frozen member. Implementations live in the owning agent's files.
 
 ## Known risks carried into the batch
 
+### 2026-10-16 — CI unblocked WITHOUT secrets: `apk` is now a self-contained job using game-ci's default androidPackage export
+The keystore secrets never arrived (`Secrets Check` report `38861592399`: only the three `UNITY_*` are configured; my token cannot write secrets —
+`GET /actions/secrets/public-key` → 403), so requiring them for a sideload preview was the wrong design. Checked upstream before changing anything:
+`game-ci/unity-builder@v4` `action.yml` defaults are `androidExportType: 'androidPackage'`, `androidKeystore*`/`androidKeyalias*`: `''`,
+`androidSymbolType: 'none'`, and `src/build-args.ts` maps those to the game-ci CLI — i.e. an APK build with NO keystore inputs is the action's normal path
+(Unity debug-signs it). So `.github/workflows/unity-android.yml` now: batch returns EXACTLY to main's prior conditions (`build`/`internal` for AAB,
+provenance and AAB store; the apk branch of the export-type switch and the batch APK artifact step are gone), and a new `apk` job
+(`if: inputs.stage == 'apk' && needs.batch.result == 'success'`, `needs: batch`) runs `unity-builder` with `androidExportType: androidPackage`,
+`androidSymbolType: none`, `buildsPath: build/apk`, then `find … -name '*.apk'` into `apk-out/` (fails loudly, printing the build tree, if none) and uploads it.
+`tool/ci_gate.py` no longer demands keystore secrets for `apk` (only: versionCode empty-or-digits); `build`/`internal` unchanged and still gated.
+Verified by parsing the YAML (jobs = batch, apk, internal; every batch `if:` identical to pre-change) and by calling `validate()` for 5 stage/secret combos.
+The phone run therefore uses branch `ci/apk` = `fdcdf71` (last all-green test SHA, since main carries B4's 2 red art tests awaiting B5). Also: another sandbox
+reset wiped `git remote`/`user.name` mid-edit (and silently reverted one patched file), which is why CI edits get verified by re-reading the file, not by trust.
+
+### 2026-10-16 — owner says "secrets added", but `Secrets Check` still reports all four keystore secrets as NOT configured
+`tool/secrets_check.py` prints its report to stdout only, and job logs are unreadable with this token (`401 Server failed to authenticate`; artifacts ARE
+readable), so `secrets-check.yml` now `tee`s the report into an artifact (`secrets-check-report-<run_id>`) — verified working on run `38860048331`, which says:
+`UNITY_LICENSE`/`UNITY_EMAIL`/`UNITY_PASSWORD` ✅, `ANDROID_KEYSTORE_BASE64`/`KEYSTORE_PASSWORD`/`KEY_ALIAS`/`KEY_PASSWORD`/`PLAY_SERVICE_ACCOUNT_JSON` ❌
+"Not configured". Consequence: repo-level `Actions secrets` does NOT have them — either saved only under the `play-internal` ENVIRONMENT (Environment secrets are
+not visible to the `batch` job, which has no `environment:` key), or names differ, or the edit was never saved. Meanwhile a local run of the same checker's
+format rules + a real `jarsigner` sign/verify on the debug keystore PASS in-sandbox, so the material is fine; and note the checker exit-codes 1 for any missing
+secret (including Play, which we deliberately do not need), so its red X-mark ≠ a broken phone build. `apk` dispatch on `ci/build-check` (`38859989495`) failed
+at `Fail fast` in ~20 s for exactly this reason.
+
 ### 2026-10-16 — signing block: owner must add 4 keystore secrets; debug keystore prepared at `~/workspace-persist/android-signing/`
 For the sideload path I generated a **debug-only** PKCS12 keystore in-sandbox (`/usr/lib/jvm/jdk-11/bin/keytool`, RSA 2048, 10000 days, alias
 `catdash-debug-2026`) and wrote the four paste-ready values to `workspace-persist/android-signing/SETUP-THIS-REPO.txt` (outside the repo, chmod 600).

@@ -11,16 +11,19 @@ def validate(env,config):
         if not env.get(key): errors.append(f'Missing GitHub secret: {key}')
     if stage=='targeted' and not re.fullmatch(r'[A-Za-z0-9_.;,]+',env.get('KIT_FILTER','')):
         errors.append('Targeted stage requires exact class/method filter (letters/digits/underscore/dot/semicolon/comma only)')
-    if stage in {'build','internal','apk'}:
+    if stage in {'build','internal'}:
         for key in ('ANDROID_KEYSTORE_BASE64','KEYSTORE_PASSWORD','KEY_ALIAS','KEY_PASSWORD'):
             if not env.get(key): errors.append(f'Missing GitHub secret: {key}')
         code=env.get('KIT_VERSION_CODE','')
-        if stage=='apk' and code=='': code='1'  # a sideloaded phone build needs no Play versionCode
         if not code.isdigit() or not 1<=int(code)<=2100000000: errors.append('Explicit valid versionCode required; must exceed all prior Play uploads')
         api=env.get('KIT_TARGET_API','')
         if not api.isdigit() or not 35<=int(api)<=99: errors.append('Explicit supported target API >=35 required; verify current Play policy')
         if config.get('packageName','').startswith('com.example.'):
             errors.append('Replace placeholder packageName before building')
+    if stage=='apk':
+        # Sideload-only preview: game-ci's androidPackage export needs no keystore (Unity debug-signs it).
+        if not re.fullmatch(r'\d*',env.get('KIT_VERSION_CODE','')):
+            errors.append('apk stage: versionCode must be empty or digits')
     if stage=='internal':
         if not env.get('PLAY_SERVICE_ACCOUNT_JSON'): errors.append('Missing GitHub secret: PLAY_SERVICE_ACCOUNT_JSON')
         if env.get('KIT_CONFIRM')!='UPLOAD INTERNAL': errors.append('Confirmation must be exactly UPLOAD INTERNAL')

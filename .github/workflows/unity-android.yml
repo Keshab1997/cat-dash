@@ -100,8 +100,8 @@ jobs:
           else
             python3 tool/verify_test_results.py artifacts/tests --both
           fi
-      - name: Signed Android build (only after passing tests)
-        if: inputs.stage != 'preflight' && inputs.stage != 'targeted' && inputs.stage != 'full'
+      - name: Signed Android AAB (only after passing tests)
+        if: inputs.stage == 'build' || inputs.stage == 'internal'
         uses: game-ci/unity-builder@4423ee75828dff56037d1d1cfdac6b68e3a6ba00 # v4
         env:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
@@ -113,9 +113,9 @@ jobs:
           buildMethod: UnityAgentKit.Editor.KitBuild.BuildAndroid
           versioning: Custom
           version: ${{ steps.gate.outputs.version }}
-          androidVersionCode: ${{ inputs.version_code != '' && inputs.version_code || '1' }}
+          androidVersionCode: ${{ inputs.version_code }}
           androidTargetSdkVersion: ${{ inputs.target_api }}
-          androidExportType: ${{ inputs.stage == 'apk' && 'androidApk' || 'androidAppBundle' }}
+          androidExportType: androidAppBundle
           androidKeystoreName: upload.keystore
           androidKeystoreBase64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           androidKeystorePass: ${{ secrets.KEYSTORE_PASSWORD }}
@@ -123,7 +123,7 @@ jobs:
           androidKeyaliasPass: ${{ secrets.KEY_PASSWORD }}
           allowDirtyBuild: true
       - name: Build provenance and checksum
-        if: inputs.stage != 'preflight' && inputs.stage != 'targeted' && inputs.stage != 'full'
+        if: inputs.stage == 'build' || inputs.stage == 'internal'
         run: |
           test -s build/Android/Game.aab -o -s build/Android/Game.apk
           python3 - <<'PYCODE'
@@ -148,17 +148,6 @@ jobs:
             build/Android/provenance.json
           if-no-files-found: error
           retention-days: 3
-      - name: Store installable APKs from THIS tested commit
-        if: inputs.stage == 'apk'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: android-apk-${{ github.sha }}-${{ github.run_attempt }}
-          path: |
-            build/Android/Game.apk
-            build/Android/Game*.apk
-            build/Android/provenance.json
-          if-no-files-found: error
-          retention-days: 3
       - name: Keep test evidence even on failure
         if: always() && inputs.stage != 'preflight'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -173,7 +162,52 @@ jobs:
           KIT_STAGE: ${{ inputs.stage }}
           KIT_STATUS: ${{ job.status }}
         run: |
-          printf '## Unity batch\nStage: %s\n\nJob: %s\n\nCommit: %s\n\nFor stage apk: download the android-apk artifact and install Game.apk (plus any Game-split-*.apk) on the phone — install with `adb install-multiple` when splits exist.\n\nPhone QA is NOT automated. No automatic retries.\n' "$KIT_STAGE" "$KIT_STATUS" "$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+          printf '## Unity batch\nStage: %s\n\nJob: %s\n\nCommit: %s\n\nPhone QA is NOT automated. No automatic retries.\n' "$KIT_STAGE" "$KIT_STATUS" "$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+  # Phone preview only: game-ci's default Android androidPackage export (APK), which Unity signs with its
+  # own debug keystore — no ANDROID_KEYSTORE_*/KEY_* secrets involved, and nothing is uploaded anywhere.
+  # Gated on `needs: batch`, so the full test suite still has to pass first.
+  apk:
+    if: inputs.stage == 'apk' && needs.batch.result == 'success'
+    needs: batch
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          lfs: true
+          persist-credentials: false
+      - name: Recover space (standard runner only)
+        run: sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup
+      - name: Unity Android APK (debug signed, installable over adb)
+        uses: game-ci/unity-builder@4423ee75828dff56037d1d1cfdac6b68e3a6ba00 # v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          projectPath: .
+          targetPlatform: Android
+          androidExportType: androidPackage
+          androidSymbolType: none
+          versioning: Custom
+          version: 0.1.0-apk
+          allowDirtyBuild: true
+          buildsPath: build/apk
+      - name: Collect the APK(s)
+        run: |
+          mkdir -p apk-out
+          find build/apk -name '*.apk' -print -exec cp {} apk-out/ ';'
+          test -n "$(ls -A apk-out)" || { echo "no apk produced under build/apk:"; find build -maxdepth 4 -type f | head -30; exit 1; }
+          ls -l apk-out
+      - name: Store installable APK from THIS tested commit
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: android-apk-${{ github.sha }}-${{ github.run_attempt }}
+          path: apk-out
+          if-no-files-found: error
+          retention-days: 3
   internal:
     if: inputs.stage == 'internal' && inputs.confirmation == 'UPLOAD INTERNAL' && github.ref == 'refs/heads/main'
     needs: batch
