@@ -106,6 +106,21 @@ a frozen member. Implementations live in the owning agent's files.
 
 ## Known risks carried into the batch
 
+### 2026-10-16 — runs 6 & 7, A12/A13/A14 history, A15 merged (`3847b665fca50a0d1f2416135d170e23e94719cd`)
+Captain now drives CI directly (`workflow_dispatch`, stage `full`) and reads the artifact XML — no owner round trip.
+Run 6 `38850014512`(SHA `43bcfab6`) → 89/91 + PlayMode 3/3: the `private static bool activeScanned` cache I prescribed in A12 leaked across fixtures
+(`RunInputTests` has no `ResetStatics`) and silently dropped later registrations → 5 fails. **A12 was never merged.**
+A13 `825069ce` (drop the setter guard) merged after I re-verified all six assertions in a Unity-`==` emulation → run `38850892449` (`18220bde`) still red in
+`RunInputTests`, because the *cache* was the poison, not the guard.
+A14 `a5e41e31` (delete cache, `ReferenceEquals` guard, assert live fallback) → run 7 `38851791944` (`b5a3a93c`): **all 5 RunInputTests green**, 3 red in
+`RunControllerTests` (`:104` `Expected: same as <rc> But was: <null>`, `:117`/`:138` mirror images). Root cause of my A14 error: I assumed the EditMode scene
+scan reliably returns the fixture's `rc`; the log shows it is inconsistent — sometimes null, sometimes `rc`, and `AddComponent` sometimes appears not to fire
+`OnEnable`. Any assert of the form "`Active` is/ isn't some controller the scene also holds" is nondeterministic.
+A15 `0c1d686cd8bf24c8427e9f919a42ffcc63fa6aa2` merged: `public static void RegisterForTest(RunController)` seam + the 3 lifecycle tests rewritten to
+register explicitly (`AreSame` after `RegisterForTest`, `IsNull` after `DestroyImmediate`/`RegisterForTest(null)`), `RunInputTests` isolation kept, production
+getter/OnDisable untouched (it is green as-is via `RunInputTests`). `activeScanned` is gone for good. Next: A16 — isolate the fixture inside the 3 tests
+(`UnityEngine.Object.DestroyImmediate(go); rc = null;` as first line) so no second live controller can win the scan; then run 8.
+
 ### 2026-10-16 — run 5 (`38850014512`, SHA `43bcfab6`): 89/91 + PlayMode 3/3 → A12 rejected, A13 merged (`18220bde96f6186455a982abf67ee15e88676eaf`)
 Run 5 cleared 7 of run 4's 8 failures (A10 lazy lookup, B3 art, A11 two-way pause sync all green). One new red: `RunControllerTests.cs:104`
 `Assert.IsNull(RunController.Active)` got `<RunControllerTests (…RunController)>` — A10's lazy rescan *resurrected the destroyed controller*.
