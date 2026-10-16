@@ -103,4 +103,41 @@ public class RunControllerTests
         UnityEngine.Object.DestroyImmediate(go2);
         Assert.IsNull(RunController.Active);
     }
+
+    [Test]
+    public void ResurrectedScan_DoesNotHappen()
+    {
+        RunController.ResetStatics();
+        var go1 = new GameObject("C1");
+        var c1 = go1.AddComponent<RunController>();
+        Assert.AreEqual(c1, RunController.Active);
+
+        RunController.ResetStatics();
+        UnityEngine.Object.DestroyImmediate(go1);
+        Assert.IsNull(RunController.Active);
+
+        var go2 = new GameObject("C2");
+        var c2 = go2.AddComponent<RunController>();
+        Assert.IsNull(RunController.Active);
+
+        RunController.ResetStatics();
+        Assert.AreEqual(c2, RunController.Active);
+
+        UnityEngine.Object.DestroyImmediate(go2);
+        RunController.ResetStatics();
+    }
+
+    [Test]
+    public void Registration_NotDropped_AfterMissedScan()
+    {
+        RunController.ResetStatics();
+        Assert.IsNull(RunController.Active);
+
+        var go = new GameObject("Late");
+        var late = go.AddComponent<RunController>();
+        Assert.AreEqual(late, RunController.Active);
+
+        UnityEngine.Object.DestroyImmediate(go);
+        RunController.ResetStatics();
+    }
 }

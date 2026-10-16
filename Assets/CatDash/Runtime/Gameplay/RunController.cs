@@ -8,17 +8,25 @@ namespace CatDash.Gameplay
     public class RunController : MonoBehaviour
     {
         private static RunController active;
+        private static bool activeScanned = false;
         /// <summary>Most recently enabled controller, or null. Cleared by OnDisable/ResetStatics.</summary>
         public static RunController Active
         {
             get
             {
-                if (active == null)
+                if (active == null && !activeScanned)
                 {
                     active = UnityEngine.Object.FindFirstObjectByType<RunController>();
+                    activeScanned = true;
+                }
+                if (active == null && !UnityEngine.Object.ReferenceEquals(active, null))
+                {
+                    active = null;
+                    activeScanned = false;
                 }
                 return active;
             }
+            // registration is the setter's job; the lazy scan cache must never block OnEnable registration
             private set { active = value; }
         }
 
@@ -114,7 +122,7 @@ namespace CatDash.Gameplay
         }
 
         /// <summary>Test hook: clears the static Active reference between PlayMode tests.</summary>
-        public static void ResetStatics() { Active = null; }
+        public static void ResetStatics() { active = null; activeScanned = false; }
 
         /// <summary>Test hook: advances the simulation by deltaTime.</summary>
         public void Tick(float deltaTime)
