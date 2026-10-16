@@ -5,16 +5,17 @@ from pathlib import Path
 
 def validate(env,config):
     stage=env.get('KIT_STAGE','preflight');errors=[]
-    if stage not in {'preflight','targeted','full','build','internal'}: return ['Unknown stage']
+    if stage not in {'preflight','targeted','full','build','apk','internal'}: return ['Unknown stage']
     if stage=='preflight': return errors
     for key in ('UNITY_LICENSE','UNITY_EMAIL','UNITY_PASSWORD'):
         if not env.get(key): errors.append(f'Missing GitHub secret: {key}')
     if stage=='targeted' and not re.fullmatch(r'[A-Za-z0-9_.;,]+',env.get('KIT_FILTER','')):
         errors.append('Targeted stage requires exact class/method filter (letters/digits/underscore/dot/semicolon/comma only)')
-    if stage in {'build','internal'}:
+    if stage in {'build','internal','apk'}:
         for key in ('ANDROID_KEYSTORE_BASE64','KEYSTORE_PASSWORD','KEY_ALIAS','KEY_PASSWORD'):
             if not env.get(key): errors.append(f'Missing GitHub secret: {key}')
         code=env.get('KIT_VERSION_CODE','')
+        if stage=='apk' and code=='': code='1'  # a sideloaded phone build needs no Play versionCode
         if not code.isdigit() or not 1<=int(code)<=2100000000: errors.append('Explicit valid versionCode required; must exceed all prior Play uploads')
         api=env.get('KIT_TARGET_API','')
         if not api.isdigit() or not 35<=int(api)<=99: errors.append('Explicit supported target API >=35 required; verify current Play policy')

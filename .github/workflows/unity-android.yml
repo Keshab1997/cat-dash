@@ -3,9 +3,9 @@ on:
   workflow_dispatch:
     inputs:
       stage:
-        description: 'Batch boundary: preflight / filtered tests / full tests / tested build / internal upload'
+        description: 'Batch boundary: preflight / filtered tests / full tests / tested build / phone APK / internal upload'
         type: choice
-        options: [preflight, targeted, full, build, internal]
+        options: [preflight, targeted, full, build, apk, internal]
         default: preflight
       test_filter:
         description: 'Targeted only: exact test class/method (required for targeted)'
@@ -100,8 +100,8 @@ jobs:
           else
             python3 tool/verify_test_results.py artifacts/tests --both
           fi
-      - name: Signed Android AAB (only after passing tests)
-        if: inputs.stage == 'build' || inputs.stage == 'internal'
+      - name: Signed Android build (only after passing tests)
+        if: inputs.stage != 'preflight' && inputs.stage != 'targeted' && inputs.stage != 'full'
         uses: game-ci/unity-builder@4423ee75828dff56037d1d1cfdac6b68e3a6ba00 # v4
         env:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
@@ -113,9 +113,9 @@ jobs:
           buildMethod: UnityAgentKit.Editor.KitBuild.BuildAndroid
           versioning: Custom
           version: ${{ steps.gate.outputs.version }}
-          androidVersionCode: ${{ inputs.version_code }}
+          androidVersionCode: ${{ inputs.version_code != '' && inputs.version_code || '1' }}
           androidTargetSdkVersion: ${{ inputs.target_api }}
-          androidExportType: androidAppBundle
+          androidExportType: ${{ inputs.stage == 'apk' && 'androidApk' || 'androidAppBundle' }}
           androidKeystoreName: upload.keystore
           androidKeystoreBase64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           androidKeystorePass: ${{ secrets.KEYSTORE_PASSWORD }}
@@ -123,18 +123,20 @@ jobs:
           androidKeyaliasPass: ${{ secrets.KEY_PASSWORD }}
           allowDirtyBuild: true
       - name: Build provenance and checksum
-        if: inputs.stage == 'build' || inputs.stage == 'internal'
+        if: inputs.stage != 'preflight' && inputs.stage != 'targeted' && inputs.stage != 'full'
         run: |
-          test -s build/Android/Game.aab
+          test -s build/Android/Game.aab -o -s build/Android/Game.apk
           python3 - <<'PYCODE'
           import hashlib,json,os
           from pathlib import Path
-          p=Path('build/Android/Game.aab')
+          packages=sorted(str(p.relative_to('build/Android')) for p in Path('build/Android').glob('Game.*'))
+          assert packages, 'no built package found'
           data={'commit':os.environ['GITHUB_SHA'],'run':os.environ['GITHUB_RUN_ID'],
                 'unity':Path('ProjectSettings/ProjectVersion.txt').read_text().strip(),
                 'config':json.loads(Path('unity-kit.json').read_text()),
-                'sha256':hashlib.sha256(p.read_bytes()).hexdigest()}
+                'packages':{p:hashlib.sha256(Path('build/Android',p).read_bytes()).hexdigest() for p in packages}}
           Path('build/Android/provenance.json').write_text(json.dumps(data,indent=2))
+          print('Built packages:',', '.join(packages))
           PYCODE
       - name: Store AAB from THIS tested commit
         if: inputs.stage == 'build' || inputs.stage == 'internal'
@@ -143,6 +145,17 @@ jobs:
           name: android-${{ github.sha }}-${{ github.run_attempt }}
           path: |
             build/Android/Game.aab
+            build/Android/provenance.json
+          if-no-files-found: error
+          retention-days: 3
+      - name: Store installable APKs from THIS tested commit
+        if: inputs.stage == 'apk'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: android-apk-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            build/Android/Game.apk
+            build/Android/Game*.apk
             build/Android/provenance.json
           if-no-files-found: error
           retention-days: 3
@@ -160,7 +173,7 @@ jobs:
           KIT_STAGE: ${{ inputs.stage }}
           KIT_STATUS: ${{ job.status }}
         run: |
-          printf '## Unity batch\nStage: %s\n\nJob: %s\n\nCommit: %s\n\nPhone QA is NOT automated. No automatic retries.\n' "$KIT_STAGE" "$KIT_STATUS" "$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+          printf '## Unity batch\nStage: %s\n\nJob: %s\n\nCommit: %s\n\nFor stage apk: download the android-apk artifact and install Game.apk (plus any Game-split-*.apk) on the phone — install with `adb install-multiple` when splits exist.\n\nPhone QA is NOT automated. No automatic retries.\n' "$KIT_STAGE" "$KIT_STATUS" "$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
   internal:
     if: inputs.stage == 'internal' && inputs.confirmation == 'UPLOAD INTERNAL' && github.ref == 'refs/heads/main'
     needs: batch

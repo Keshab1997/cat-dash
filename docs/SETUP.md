@@ -87,6 +87,8 @@ Actions → **Unity Android** → Run workflow (main):
 - targeted: exact class/method filter, EditMode only; no build.
 - full: EditMode AND PlayMode; no build.
 - build: full tests once, then signed AAB; no Play upload.
+- apk: full tests once, then a signed **installable APK** uploaded as the `android-apk-<sha>-<attempt>`
+  artifact (this repo's addition, not kit v1); no Play upload, version_code optional (defaults to 1).
 - internal: full tests once → signed AAB → environment gate → internal testing upload.
 
 Build/internal require explicit version_code greater than ALL previously uploaded

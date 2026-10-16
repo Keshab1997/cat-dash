@@ -106,6 +106,20 @@ a frozen member. Implementations live in the owning agent's files.
 
 ## Known risks carried into the batch
 
+### 2026-10-16 — run 10 (`dbe0ccb9`): 93/96 — B4's rig imports, 2 of B's own art tests are red; owner approved a phone-APK stage in CI
+Red tests, both about how Unity re-times the clip, not about the model: `RunClip_KeysOneKeyframePerPose` fails because the FBX importer **bakes one key per
+frame** (`resampleCurves: 0` = "Bake Into Clip", it does not preserve authored keys) so `Head.m_LocalRotation.x` is keyed at 0.0417 s; and
+`RunClip_BobLandsOnTheMeshAtEveryPose` measured 0.00015 m where the spec says 0.015 m on `BoneNames[0]` — 100×, i.e. a centimetre-space parent scale in the
+imported armature hierarchy, on a channel whose authored value was right. Unity import was, as B documented, the unproven half.
+**CI change (owner-approved: "CI workflow-te APK build jog koro"):** `.github/workflows/unity-android.yml` gained an `apk` dispatch stage —
+`androidExportType: ${{ inputs.stage == 'apk' && 'androidApk' || 'androidAppBundle' }}`, versionCode defaulting to 1 for sideload (Play stages still require an
+explicit code), provenance now checksums `Game.aab`/`Game.apk` whichever exists, and a separate `Store installable APKs` artifact step; `tool/ci_gate.py`
+accepts `apk` and requires the four keystore secrets for it. `build`/`internal` conditions were rewritten as "any stage past full", which is equivalent for
+them (verified by parsing the YAML: batch has 14 steps, AAB artifact name unchanged so the `internal` job still finds it). Tests still gate the build.
+Kit has NO `apk-tool` package (checked: only `template/docs/SETUP.md` mentions APK, "No APK/AAB build or upload") — this is our own edit, keep it in mind on
+`tool/kit_update.py` runs, a kit refresh can overwrite the workflow file. Phone install: download the `android-apk-<sha>` artifact; if `Game-split-*.apk`
+files are present use `adb install-multiple Game.apk Game-split-*.apk`, otherwise `adb install Game.apk`.
+
 ### 2026-10-16 — B4 (cat rig + `Run` clip) reviewed and MERGED — B worked ahead of the block I drafted, and it is a good piece of work
 B `6f95e85503f9440d70aefa6fa633893ba4e6aa9e` on `work/agent-b/cd-b1-cat-rig`, base `43bcfab6` (contains B3), zero conflicts against the now-green main,
 ownership clean (`Assets/Art/**` + `tool/blender_*` + `docs/ASSETS.md` only). Cat.fbx 86156 → 100908 B, meta: `importAnimation: 1`, `animationType: 1`
