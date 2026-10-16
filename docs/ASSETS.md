@@ -121,12 +121,16 @@ now carry (also emitted in each generator's `REPORT_JSON`):
 - The "mouse" blaze on the back is painted at ~55 % of a 384 px tile, so it reads as a
   small marking rather than a big graphic; it is verified by eye in the Blender previews,
   not by an automated test.
-- **Animation: verified in Blender, NOT in Unity.** The round trip proves the FBX holds
+- **Animation: key placement verified in Blender, values verified in Unity.** The round trip proves the FBX holds
   the right take, the right pose keys and the right values (the measured error against
   the spec formulas is 0.0 mm on legs, tail and head, and 0.000/0.015 m for the bob).
-  It does NOT prove how Unity's importer reads it - Legacy clip creation, the clip name,
-  the wrap mode and the `optimizeBones` interaction can only be confirmed by the Editor,
-  and the art tests in CI are what will confirm them.
+  Unity 6's Legacy importer bakes every curve onto the clip frame rate on import (even
+  with resampleCurves: 0 and animationCompression: 0), so the Editor cannot confirm key
+  placement — only the imported values, the clip name, the wrap mode and the
+  `optimizeBones` interaction, which the art tests in CI confirm. `export_fbx` therefore
+  uses `FBX_SCALE_UNITS`: the exporter default compensates its unit conversion with a
+  x100 root scale, which Unity imports as a 100x world with animation translations
+  divided by 100.
 - **Visual gate: NOT RUN.** Only an owner-captured Unity screenshot/clip from the
   reviewed candidate SHA can clear it (docs/GAME_BRIEF.md, "Visual acceptance gate").
 

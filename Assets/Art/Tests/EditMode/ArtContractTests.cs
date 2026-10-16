@@ -439,55 +439,104 @@ namespace CatDash.Art.Tests
         }
 
         [Test]
-        public void RunClip_KeysOneKeyframePerPose()
+        public void RunClip_LoopClosesAndHeadTailFollowSpec()
         {
+            // Key PLACEMENT (one keyframe per pose, never baked) is enforced at the
+            // source, not here: tool/blender_verify_assets.py reads Cat.fbx directly and
+            // fails on any key outside RunCycleSpec.KeyedFrames. It must live there
+            // because Unity 6's Legacy importer bakes every curve onto the clip frame
+            // rate on import — observed on 6000.3.3f1 (CI) and 6000.6.6f1 (local) even
+            // with resampleCurves: 0 and animationCompression: 0 in Cat.fbx.meta — so an
+            // in-Editor key-time assertion can never pass on a correct file.
+            // What the Editor CAN confirm is what Unity makes of the clip: every curve
+            // stays inside the 0.5 s take and closes the loop (no pop), and the head and
+            // tail numbers reach the mesh at every pose (bob and legs are covered by
+            // RunClip_BobLandsOnTheMeshAtEveryPose).
             var clip = LoadRunClip();
-            Assert.IsNotNull(clip, "Cat.fbx must import the Run clip before its keys can be read");
+            Assert.IsNotNull(clip, "Cat.fbx must import the Run clip before it can be checked");
 
             var bindings = AnimationUtility.GetCurveBindings(clip);
             Assert.IsNotEmpty(bindings, "the imported clip carries no curves");
-
-            var expectedKeyed = RunCycleSpec.KeyedFrames()
-                .Select(frame => KeyTimeKey(frame / (float)RunCycleSpec.SampleRate))
-                .ToArray();
-            var keyedTimes = new SortedSet<int>();
             foreach (var binding in bindings)
             {
                 var curve = AnimationUtility.GetEditorCurve(clip, binding);
                 Assert.IsNotNull(curve,
-                    $"{binding.path}.{binding.propertyName} could not be read; the keyframe "
-                    + "contract needs the authored keys (see animationCompression in the fbx.meta)");
+                    $"{binding.path}.{binding.propertyName} could not be read");
+                Assert.IsTrue(curve.length > 0,
+                    $"{binding.path}.{binding.propertyName} has no keys");
                 foreach (var key in curve.keys)
                 {
-                    keyedTimes.Add(KeyTimeKey(key.time));
-                    Assert.IsTrue(System.Array.IndexOf(expectedKeyed, KeyTimeKey(key.time)) >= 0,
-                        $"{binding.path}.{binding.propertyName} is keyed at {key.time:F4} s, which "
-                        + "is not a pose frame — the clip must be keyed on the poses, not baked");
+                    Assert.IsTrue(key.time >= -1e-3f
+                                  && key.time <= RunCycleSpec.LengthSeconds + 1e-3f,
+                        $"{binding.path}.{binding.propertyName} is keyed at {key.time:F4} s, "
+                        + "outside the 0.5 s take");
                 }
 
                 // The loop closes: the last key repeats the first, or a 0.5 s loop would pop.
-                Assert.AreEqual(curve.keys[0].value, curve.keys[curve.length - 1].value, 1e-5f,
+                Assert.AreEqual(curve.keys[0].value, curve.keys[curve.length - 1].value, 1e-4f,
                     $"{binding.path}.{binding.propertyName} does not end where it starts, so the "
                     + "run cycle would pop instead of looping");
             }
 
-            // Four poses + the closing repeat == PoseCount + 1 distinct keyframes, spread over
-            // every animated curve: this is the "one keyframe per pose" contract. The four pose
-            // keyframes themselves are exactly PoseCount, one per pose of the reference sheet.
-            CollectionAssert.AreEqual(expectedKeyed, keyedTimes.ToArray(),
-                $"the clip is keyed at {keyedTimes.Count} distinct times over {bindings.Length} "
-                + "curves; RunCycleSpec keyed the four poses plus the frame that closes the loop");
-            Assert.AreEqual(RunCycleSpec.PoseCount + 1, keyedTimes.Count,
-                "the four pose keyframes plus one loop-closing keyframe are the whole clip");
+            var model = AssetDatabase.LoadAssetAtPath<GameObject>($"{GeneratedFolder}/Cat.fbx");
+            Assert.IsNotNull(model, "Cat.fbx did not import");
+            var instance = Object.Instantiate(model);
+            instance.hideFlags = HideFlags.HideAndDontSave;
+            try
+            {
+                var transforms = instance.GetComponentsInChildren<Transform>(true);
+
+                // The Head island, not the Head BONE: like the Body island in the bob test,
+                // the contract is that the spec's number reaches the MESH.
+                var head = transforms.First(t => t.name == "Head"
+                                                 && t.GetComponent<Renderer>() != null);
+                clip.SampleAnimation(instance,
+                    RunCycleSpec.PhaseOf(RunCycleSpec.RunPose.Contact) * RunCycleSpec.LengthSeconds);
+                var headAtContact = head.rotation;
+                clip.SampleAnimation(instance,
+                    RunCycleSpec.PhaseOf(RunCycleSpec.RunPose.Down) * RunCycleSpec.LengthSeconds);
+                float headCounter = Quaternion.Angle(headAtContact, head.rotation);
+                Assert.AreEqual(RunCycleSpec.HeadSteadyDegrees, headCounter, 0.5f,
+                    $"the head counter-rotated {headCounter:F2} deg between Contact and Down; "
+                    + $"RunCycleSpec steadies it by {RunCycleSpec.HeadSteadyDegrees:F0} deg");
+
+                // The Tail island: the sway lags the body by TailPhaseLag, so Contact and
+                // Down sit on opposite extremes and the island must swing between them.
+                var tail = transforms.First(t => t.name == "Tail"
+                                                 && t.GetComponent<Renderer>() != null);
+                clip.SampleAnimation(instance,
+                    RunCycleSpec.PhaseOf(RunCycleSpec.RunPose.Contact) * RunCycleSpec.LengthSeconds);
+                var tailAtContact = tail.rotation;
+                clip.SampleAnimation(instance,
+                    RunCycleSpec.PhaseOf(RunCycleSpec.RunPose.Down) * RunCycleSpec.LengthSeconds);
+                float tailSway = Quaternion.Angle(tailAtContact, tail.rotation);
+                float expectedSway = Mathf.Abs(
+                    TailYawDegrees(RunCycleSpec.PhaseOf(RunCycleSpec.RunPose.Down))
+                    - TailYawDegrees(RunCycleSpec.PhaseOf(RunCycleSpec.RunPose.Contact)));
+                Assert.AreEqual(expectedSway, tailSway, 1.0f,
+                    $"the tail swung {tailSway:F2} deg between Contact and Down; "
+                    + $"RunCycleSpec's lagged yaw asks for {expectedSway:F2} deg");
+            }
+            finally
+            {
+                Object.DestroyImmediate(instance);
+            }
         }
 
         /// <summary>
-        /// Key times are compared as rounded integers (1e-4 s) so the assertion cannot fail on
-        /// float noise from the importer's second -> frame conversion.
+        /// Tail yaw in degrees for a cycle position, mirroring run_pose() in
+        /// tool/blender_cat.py (TailSwayDegrees * sin, lagging by TailPhaseLag). Kept as
+        /// plain spec arithmetic so a drift between the generator and the contract fails
+        /// this test instead of hiding inside the FBX.
         /// </summary>
-        private static int KeyTimeKey(float seconds)
+        private static float TailYawDegrees(float cycles)
         {
-            return Mathf.RoundToInt(seconds * 10000f);
+            float phase = (cycles - RunCycleSpec.TailPhaseLag) % 1f;
+            if (phase < 0f)
+            {
+                phase += 1f;
+            }
+            return RunCycleSpec.TailSwayDegrees * Mathf.Sin(phase * 2f * Mathf.PI);
         }
 
         [Test]

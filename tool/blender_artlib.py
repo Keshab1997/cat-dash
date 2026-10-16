@@ -895,6 +895,14 @@ def export_fbx(path: Path, object_names=None, animation=False, bake_step=None):
       the imported clip then carries one keyframe per pose (RunCycleSpec.KeyedFrames).
     * simplification must never touch the bones, so `bake_anim_use_all_bones` (which forces
       keying on bones) is on: a simplified bone curve could lose a pose key.
+    * `apply_scale_options` is FBX_SCALE_UNITS, not the exporter default: with the
+      default the exporter compensates its metres-to-centimetres conversion with a
+      x100 scale baked onto every root object, so Unity imports a 100x world, divides
+      every animation translation by 100 and resamples the clip onto every frame.
+      UNITS writes real metres (UnitScaleFactor 100 = one metre) under scale-1 roots,
+      so Unity imports the authored numbers 1:1. Probed on Blender 4.5.14: the default
+      (ALL) as well as NONE and CUSTOM all put Lcl Scaling 100.0 on the root, UNITS
+      leaves it at 1 with the same -90 deg axis-conversion rotation and metre verts.
     * The take is exported by the GLOBAL animstack path, whose name is the SCENE name: on
       the all-actions path Blender names the take "<object>|<action>" ("CatDash_Rig|Run"),
       and Unity's Legacy importer names the clip after the take, so the scene is named
@@ -914,6 +922,7 @@ def export_fbx(path: Path, object_names=None, animation=False, bake_step=None):
         "object_types": object_types, "axis_forward": "-Z", "axis_up": "Y",
         "apply_unit_scale": True, "global_scale": 1.0, "mesh_smooth_type": "FACE",
         "use_mesh_modifiers": True, "path_mode": "AUTO", "bake_space_transform": False,
+        "apply_scale_options": "FBX_SCALE_UNITS",
     }
     if animation:
         if not bake_step or bake_step <= 0:
