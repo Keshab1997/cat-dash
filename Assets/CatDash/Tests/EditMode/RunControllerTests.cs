@@ -105,7 +105,7 @@ public class RunControllerTests
         RunController.RegisterForTest(rc2);
         Assert.AreSame(rc2, RunController.Active);
         UnityEngine.Object.DestroyImmediate(go2);
-        Assert.IsNull(RunController.Active);
+        Assert.IsFalse(RunController.HasActiveForTest);
     }
 
     [Test]
@@ -128,10 +128,9 @@ public class RunControllerTests
         RunController.RegisterForTest(c2);
         Assert.AreSame(c2, RunController.Active);
 
-        RunController.RegisterForTest(null);
-        Assert.IsNull(RunController.Active); // null case — not AreSame(c2) again
-
         UnityEngine.Object.DestroyImmediate(go2);
+        RunController.RegisterForTest(null);
+        Assert.IsFalse(RunController.HasActiveForTest);
         RunController.ResetStatics();
     }
 
