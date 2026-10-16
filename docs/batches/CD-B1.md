@@ -106,6 +106,20 @@ a frozen member. Implementations live in the owning agent's files.
 
 ## Known risks carried into the batch
 
+### 2026-10-16 — CI unblocked WITHOUT secrets: `apk` is now a self-contained job using game-ci's default androidPackage export
+The keystore secrets never arrived (`Secrets Check` report `38861592399`: only the three `UNITY_*` are configured; my token cannot write secrets —
+`GET /actions/secrets/public-key` → 403), so requiring them for a sideload preview was the wrong design. Checked upstream before changing anything:
+`game-ci/unity-builder@v4` `action.yml` defaults are `androidExportType: 'androidPackage'`, `androidKeystore*`/`androidKeyalias*`: `''`,
+`androidSymbolType: 'none'`, and `src/build-args.ts` maps those to the game-ci CLI — i.e. an APK build with NO keystore inputs is the action's normal path
+(Unity debug-signs it). So `.github/workflows/unity-android.yml` now: batch returns EXACTLY to main's prior conditions (`build`/`internal` for AAB,
+provenance and AAB store; the apk branch of the export-type switch and the batch APK artifact step are gone), and a new `apk` job
+(`if: inputs.stage == 'apk' && needs.batch.result == 'success'`, `needs: batch`) runs `unity-builder` with `androidExportType: androidPackage`,
+`androidSymbolType: none`, `buildsPath: build/apk`, then `find … -name '*.apk'` into `apk-out/` (fails loudly, printing the build tree, if none) and uploads it.
+`tool/ci_gate.py` no longer demands keystore secrets for `apk` (only: versionCode empty-or-digits); `build`/`internal` unchanged and still gated.
+Verified by parsing the YAML (jobs = batch, apk, internal; every batch `if:` identical to pre-change) and by calling `validate()` for 5 stage/secret combos.
+The phone run therefore uses branch `ci/apk` = `fdcdf71` (last all-green test SHA, since main carries B4's 2 red art tests awaiting B5). Also: another sandbox
+reset wiped `git remote`/`user.name` mid-edit (and silently reverted one patched file), which is why CI edits get verified by re-reading the file, not by trust.
+
 ### 2026-10-16 — owner says "secrets added", but `Secrets Check` still reports all four keystore secrets as NOT configured
 `tool/secrets_check.py` prints its report to stdout only, and job logs are unreadable with this token (`401 Server failed to authenticate`; artifacts ARE
 readable), so `secrets-check.yml` now `tee`s the report into an artifact (`secrets-check-report-<run_id>`) — verified working on run `38860048331`, which says:
