@@ -211,7 +211,12 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           ls -l Assets/CatDash/Scenes/ || { echo "generator produced no scene"; exit 1; }
-          git add -f Assets/CatDash/Scenes/CatDash.unity Assets/CatDash/Scenes/CatDash.unity.meta
+          # the new folder needs a folderAsset .meta too, or tool/preflight.py fails the next run
+          if [ ! -f Assets/CatDash/Scenes.meta ]; then
+            printf 'fileFormatVersion: 2\nguid: %s\nfolderAsset: yes\nDefaultImporter:\n  externalObjects: {}\n  userData:\n  assetBundleName:\n  assetBundleVariant:\n' \
+              "$(printf 'CatDash-Scenes-folder' | md5sum | cut -c1-32)" > Assets/CatDash/Scenes.meta
+          fi
+          git add -f Assets/CatDash/Scenes/CatDash.unity Assets/CatDash/Scenes/CatDash.unity.meta Assets/CatDash/Scenes.meta
           git diff --cached --quiet && { echo "nothing staged"; exit 1; }
           git commit -q -m "feat(scene): CI-generated CatDash.unity for the phone preview build"
           git push -q origin HEAD:${{ github.ref_name }}
@@ -252,6 +257,8 @@ jobs:
         with:
           projectPath: .
           targetPlatform: Android
+          buildMethod: CatDash.EditorTools.CatDashPhoneBuild.BuildPhoneApk
+          buildName: Game
           androidExportType: androidPackage
           androidSymbolType: none
           versioning: Custom
