@@ -17,7 +17,7 @@ namespace CatDash.Gameplay
         private RunController registeredController;
 
         public bool InputEnabled { get { return inputEnabled; } }
-        public bool IsRegistered { get { return registeredController != null; } }
+        public bool IsRegistered { get { return ResolveController() != null; } }
 
         public void EnableInput() { inputEnabled = true; }
         public void DisableInput() { inputEnabled = false; tracking = false; }
@@ -59,6 +59,12 @@ namespace CatDash.Gameplay
                 registeredController.UnregisterObserver(this);
                 registeredController = null;
             }
+        }
+
+        private RunController ResolveController()
+        {
+            if (registeredController == null || registeredController != RunController.Active) TryRegister();
+            return registeredController;
         }
 
         private void TryRegister()
@@ -131,14 +137,14 @@ namespace CatDash.Gameplay
         public void OnApplicationPause(bool pauseStatus)
         {
             if (pauseStatus) DisableInput();
-            else if ((registeredController != null && registeredController.IsRunning) || (registeredController == null && RunController.Active != null && RunController.Active.IsRunning)) EnableInput();
+            else if ((ResolveController() != null && ResolveController().IsRunning) || (ResolveController() == null && RunController.Active != null && RunController.Active.IsRunning)) EnableInput();
         }
 
         /// <summary>Public seam; see OnApplicationPause.</summary>
         public void OnApplicationFocus(bool hasFocus)
         {
             if (!hasFocus) DisableInput();
-            else if (registeredController != null && registeredController.IsRunning) EnableInput();
+            else if ((ResolveController() != null && ResolveController().IsRunning) || (ResolveController() == null && RunController.Active != null && RunController.Active.IsRunning)) EnableInput();
         }
     }
 }
