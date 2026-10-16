@@ -25,12 +25,15 @@ Islands (each its own object, pivot on the joint that should drive it) stay the
 """
 from __future__ import annotations
 
+import math
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import blender_artlib as art  # noqa: E402
+
+bpy = art.bpy  # the same lazy Blender handle the library holds (None outside Blender)
 
 # --------------------------------------------------------------------------- #
 # Palette — mirrors Assets/Art/PaletteSpec.cs (hero render sampled values)
@@ -306,6 +309,124 @@ JOINTS = {
 }
 
 
+# --------------------------------------------------------------------------- #
+# Rig — six bones, one island per bone, four-pose run cycle
+# Mirrors Assets/Art/RunCycleSpec.cs (the contract). Kept as plain numbers here because
+# this generator is Python, not C#; tool/blender_verify_assets.py re-derives the clip from
+# the same formulas and checks the exported FBX against the contract values.
+# --------------------------------------------------------------------------- #
+RIG_NAME = "CatDash_Rig"
+CLIP_NAME = "Run"                    # RunCycleSpec.ClipName
+FRAME_COUNT = 12                     # RunCycleSpec.FrameCount
+POSE_COUNT = 4                       # RunCycleSpec.PoseCount
+SAMPLE_RATE = 24                     # RunCycleSpec.SampleRate
+POSE_PHASE = (0.0, 0.25, 0.5, 0.75)  # RunCycleSpec.PosePhase
+LEG_SWING_DEGREES = 28.0             # RunCycleSpec.LegSwingDegrees
+HIND_PHASE_OFFSET = 0.5              # RunCycleSpec.HindPhaseOffset
+BODY_BOB_METRES = 0.015              # RunCycleSpec.BodyBobMetres
+BODY_BOB_CONTACT_EPSILON = 1e-6      # RunCycleSpec.BodyBobContactEpsilon
+BODY_BOB_FREQUENCY = 2.0             # RunCycleSpec.BodyBobFrequencyMultiplier
+TAIL_SWAY_DEGREES = 8.0              # RunCycleSpec.TailSwayDegrees
+TAIL_PHASE_LAG = 0.125               # RunCycleSpec.TailPhaseLag
+HEAD_STEADY_DEGREES = 2.0            # RunCycleSpec.HeadSteadyDegrees
+# The pose frames are 3 apart, and the FBX exporter samples every BAKE_STEP-th frame, so the
+# exported clip keys exactly the pose frames plus the closing frame (never every frame).
+POSE_SPACING = FRAME_COUNT // POSE_COUNT
+
+# (bone, head, tail, parent) in authoring axes. Order is RunCycleSpec.BoneNames; Root is
+# first because the vertical bob is keyed on it. Root points straight up, which makes its
+# own axis the vertical one; the leg bones point down, so a pitch about world X swings them
+# fore/aft; the tail bone points up-and-back so a yaw about world Z sways it side to side.
+RIG_BONES = (
+    ("Root", (0.0, 0.0, 0.0), (0.0, 0.0, 0.215), None),
+    ("Body", (0.0, 0.140, 0.215), (0.0, -0.150, 0.245), "Root"),
+    ("Head", (0.0, -0.260, 0.365), (0.0, -0.400, 0.365), "Body"),
+    ("FrontLegs", (0.0, -0.150, 0.200), (0.0, -0.150, 0.010), "Body"),
+    ("HindLegs", (0.0, 0.140, 0.215), (0.0, 0.170, 0.010), "Body"),
+    ("Tail", (0.0, 0.245, 0.285), (0.0, 0.318, 0.460), "Body"),
+)
+
+# island -> driving bone, straight from RunCycleSpec.BoneNames' comments
+# ("one island = one bone, weight 1.0"): rigid parenting, no skinning, no re-topology.
+ISLAND_BONES = {
+    "Body": "Body", "Neck": "Body",
+    "Head": "Head", "EyeL": "Head", "EyeR": "Head", "Muzzle": "Head",
+    "EarL": "Head", "EarR": "Head",
+    "LegFrontL": "FrontLegs", "LegFrontR": "FrontLegs",
+    "LegHindL": "HindLegs", "LegHindR": "HindLegs",
+    "Tail": "Tail",
+}
+
+
+def wrap01(cycles: float) -> float:
+    phase = cycles % 1.0
+    return phase + 1.0 if phase < 0.0 else phase
+
+
+def body_bob_metres_at(cycles: float) -> float:
+    """RunCycleSpec.BodyBobMetresAt: the UPWARD offset above the contact height, as a raised
+    cosine — exactly 0 at both contacts (via the epsilon snap), +BodyBobMetres at mid-stance
+    and at the airborne apex, never negative."""
+    phase = wrap01(cycles)
+    angle = phase * BODY_BOB_FREQUENCY * 2.0 * math.pi
+    offset = BODY_BOB_METRES * ((1.0 - math.cos(angle)) / 2.0)
+    return 0.0 if offset < BODY_BOB_CONTACT_EPSILON else offset
+
+
+def leg_pitch_degrees(cycles: float, phase_offset: float) -> float:
+    """RunCycleSpec.LegPitchDegrees, degrees about world X; +28 deg swings the paw back."""
+    return LEG_SWING_DEGREES * math.sin(wrap01(cycles + phase_offset) * 2.0 * math.pi)
+
+
+def run_pose(cycles: float) -> dict:
+    """Every bone's pose at a cycle position, taken from the spec's numbers:
+
+      Root       vertical bob (local +Y is up, because the Root bone points up).
+      FrontLegs  pitch about world X, quarters of the cycle at the swing extremes.
+      HindLegs   the same curve half a cycle behind the front pair.
+      Tail       yaw about world Z, lagging the body by an eighth of a cycle.
+      Head       counter-rotation against the bob (HeadSteadyDegrees), keeping the face level.
+      Body       holds still: the spec gives the trunk no rotation term.
+
+    The left/right legs of a pair share one bone, so a pair swings rigidly together — that is
+    RunCycleSpec.SkinningRule by construction; the spec's SidePhaseOffset needs more than six
+    bones and is therefore not expressible in this rig.
+    """
+    bob = body_bob_metres_at(cycles)
+    return {
+        "Root": {"location": (0.0, bob, 0.0)},
+        "Body": {},
+        "Head": {"axis_angle": ((1.0, 0.0, 0.0), -HEAD_STEADY_DEGREES * bob / BODY_BOB_METRES)},
+        "FrontLegs": {"axis_angle": ((1.0, 0.0, 0.0), leg_pitch_degrees(cycles, 0.0))},
+        "HindLegs": {"axis_angle": ((1.0, 0.0, 0.0),
+                                    leg_pitch_degrees(cycles, HIND_PHASE_OFFSET))},
+        "Tail": {"axis_angle": ((0.0, 0.0, 1.0), TAIL_SWAY_DEGREES * math.sin(
+            wrap01(cycles - TAIL_PHASE_LAG) * 2.0 * math.pi))},
+    }
+
+
+def run_keyed_poses():
+    """(frame, pose) for the four poses plus the loop-closing repeat of Contact at
+    FRAME_COUNT — without that key the clip would end on the Air pose and a 0.5 s loop
+    would pop back to Contact instantly."""
+    keyed = [(pose * POSE_SPACING, run_pose(POSE_PHASE[pose])) for pose in range(POSE_COUNT)]
+    keyed.append((FRAME_COUNT, run_pose(0.0)))
+    for frame, _ in keyed:
+        if frame % POSE_SPACING:
+            raise SystemExit(f"error: keyed frame {frame} is not on the "
+                             f"{POSE_SPACING}-frame pose grid the FBX sampling assumes")
+    return keyed
+
+
+def build_rig(objects: dict):
+    """Armature, rigid bone parenting for the thirteen islands, and the run action."""
+    armature = art.make_armature(RIG_NAME, RIG_BONES)
+    for island, bone in ISLAND_BONES.items():
+        art.parent_to_bone(objects[island], armature, bone)
+    action = art.make_pose_action(armature, CLIP_NAME, run_keyed_poses())
+    return armature, action
+
+
 def build_body() -> art.Part:
     """Torso: chunky kitten barrel with haunches at the hip end. Ring u_rel 0 must
     be the belly (the atlas tile paints the white belly along both u edges), so the
@@ -457,18 +578,39 @@ def main() -> None:
 
     root_empty = art.make_empty("CatDash_Cat")
     parts = []
+    objects = {}
     for name, part, joint_name in build:
         joint = joints[joint_name]
-        art.make_object(name, part.transformed(offset=(-joint[0], -joint[1], -joint[2])),
-                        material=material, smooth=True, parent=root_empty).location = joint
+        objects[name] = art.make_object(
+            name, part.transformed(offset=(-joint[0], -joint[1], -joint[2])),
+            material=material, smooth=True, parent=root_empty)
+        objects[name].location = joint
         parts.append((name, part))
 
     total = sum(part.tri_count() for _, part in parts)
     if total > 4000:
         raise SystemExit(f"error: cat budget exceeded: {total} triangles > 4000")
 
+    scene = bpy.context.scene
+    scene.frame_start = 0
+    scene.frame_end = FRAME_COUNT
+    scene.render.fps = SAMPLE_RATE
+    scene.render.fps_base = 1.0
+    # The FBX take (and therefore the Unity clip) is named after the SCENE on the export
+    # path this rig uses; see art.export_fbx. That is how the clip ends up called "Run"
+    # instead of something like "CatDash_Rig|Run".
+    scene.name = CLIP_NAME
+
+    armature, action = build_rig(objects)
+    armature.parent = root_empty
+    keyed_frames = [int(round(point.co.x)) for point in action.fcurves[0].keyframe_points]
+    print(f"rig: {len(armature.data.bones)} bones {[b.name for b in armature.data.bones]}, "
+          f"action '{action.name}' keyed on frames {keyed_frames} at {SAMPLE_RATE} fps "
+          f"({FRAME_COUNT / SAMPLE_RATE:.3f} s), islands bone-parented: "
+          f"{len(ISLAND_BONES)}")
+
     art.finish("Cat", args, texture_canvas=None, parts=parts, material_name="M_Cat_Fur",
-               object_name="CatDash_Cat",
+               object_name="CatDash_Cat", animation=True, bake_step=POSE_SPACING,
                pivot="ground level, centred between the paws (Blender 0,0,0; Unity 0,0,0)",
                forward="faces Blender -Y => Unity +Z",
                texture_name=f"Cat_{args.texture_size}.png", texture_written=True,
@@ -483,7 +625,9 @@ def main() -> None:
                                 "mouse-shaped blaze on the back", "pink inner ears",
                                 "pink nose", "teal eyes with white highlight",
                                 "cream paw socks", "cream tail tip"],
-                      "rig": "no skinning this batch; see Assets/Art/RunCycleSpec.cs"})
+                      "rig": {"bones": [b[0] for b in RIG_BONES], "clip": CLIP_NAME,
+                              "keyed_frames": [f for f, _ in run_keyed_poses()],
+                              "parenting": "one island = one bone, rigid (no weights)"}})
     print(f"note: cat islands: {[name for name, _, _ in build]}")
 
 

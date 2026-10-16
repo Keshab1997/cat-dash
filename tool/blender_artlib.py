@@ -90,16 +90,39 @@ def png_meta(target: Path, max_size: int) -> str:
             "  userData:\n  assetBundleName:\n  assetBundleVariant:\n")
 
 
-def model_meta(target: Path) -> str:
-    """Minimal ModelImporter meta; Unity normalises the rest on first import."""
+def model_meta(target: Path, animation: bool = False) -> str:
+    """Minimal ModelImporter meta; Unity normalises the rest on first import.
+
+    `animation=True` is used by the rigged cat only: it switches the importer to the
+    Legacy animation system and asks it to keep the authored keys exactly as exported.
+
+      animationType: 1          ModelImporterAnimationType.Legacy. The clip is played by
+                                a Legacy Animation component, not a Mecanim Animator.
+      importAnimation: 1        Import the FBX take; the clip is named after the take
+                                ("Run", see RunCycleSpec.ClipName).
+      animationCompression: 0   Off. The clip is five authored keys per curve, so key
+                                reduction must not silently drop a pose key.
+      animationWrapMode: 2      Loop (RunCycleSpec.Loop is true).
+      resampleCurves: 0         Do not resample the keys onto a fixed frame rate.
+      optimizeBones: 0          The rig is RIGID BONE PARENTING (one island = one bone,
+                                no weights), so bones carry no vertices; with bone
+                                optimisation on the importer is free to drop the rig.
+    """
+    animations = ("  animations:\n    legacyGenerateAnimations: 4\n    bakeSimulation: 0\n"
+                  "    optimizeGameObjects: 0\n"
+                  + ("    animationCompression: 0\n" if animation
+                     else "    animationCompression: 1\n")
+                  + "    animationPositionError: 0.5\n    animationRotationError: 0.5\n"
+                  "    animationScaleError: 0.5\n"
+                  + ("    animationWrapMode: 2\n" if animation else ""))
+    import_switch = ("  importAnimation: 1\n  animationType: 1\n" if animation
+                     else "  importAnimation: 0\n")
+    import_switch += ("  resampleCurves: 0\n" if animation else "")
     return (f"fileFormatVersion: 2\nguid: {guid_for(target)}\nModelImporter:\n"
             "  serializedVersion: 22200\n  internalIDToNameTable: []\n"
             "  materials:\n    materialImportMode: 2\n    materialName: 0\n"
             "    materialSearch: 0\n    materialLocation: 1\n"
-            "  animations:\n    legacyGenerateAnimations: 4\n    bakeSimulation: 0\n"
-            "    optimizeGameObjects: 0\n    animationCompression: 1\n"
-            "    animationPositionError: 0.5\n    animationRotationError: 0.5\n"
-            "    animationScaleError: 0.5\n  importAnimation: 0\n"
+            + animations + import_switch +
             "  importBlendShapeDeformPercent: 0\n  importBlendShapes: 0\n"
             "  importCameras: 0\n  importLights: 0\n  importVisibility: 0\n"
             "  importConstraints: 0\n  importNormals: 0\n  importTangents: 0\n"
@@ -113,7 +136,9 @@ def model_meta(target: Path) -> str:
             "  generateSecondaryUV: 0\n  useFileScale: 1\n  fileScale: 1\n"
             "  globalScale: 1\n  useFileUnits: 1\n  bakeAxisConversion: 0\n"
             "  meshOptimizationFlags: -1\n  skinWeights: 4\n  maxBonesPerVertex: 4\n"
-            "  minBoneWeight: 0.001\n  optimizeBones: 1\n  meshSmoothingAngle: 60\n"
+            "  minBoneWeight: 0.001\n"
+            + ("  optimizeBones: 0\n" if animation else "  optimizeBones: 1\n") +
+            "  meshSmoothingAngle: 60\n"
             "  appendAnchor: 0\n  externalObjects: {}\n  userData:\n"
             "  assetBundleName:\n  assetBundleVariant:\n")
 
@@ -147,10 +172,11 @@ def ensure_asset_folders(paths, kinds=("folder",)) -> list[str]:
     return created
 
 
-def write_asset_meta(target: Path, kind: str, max_size: int = 1024) -> str:
+def write_asset_meta(target: Path, kind: str, max_size: int = 1024,
+                     animation: bool = False) -> str:
     writers = {"folder": lambda p: folder_meta(p),
                "png": lambda p: png_meta(p, max_size),
-               "model": lambda p: model_meta(p),
+               "model": lambda p: model_meta(p, animation),
                "cs": lambda p: cs_meta(p),
                "text": lambda p: text_meta(p)}
     meta = target.with_name(target.name + ".meta")
@@ -734,19 +760,174 @@ def make_material(name, image_path: Path | None, base_colour, roughness=0.75, me
     return material
 
 
-def export_fbx(path: Path, object_names=None):
+# --------------------------------------------------------------------------- #
+# Rig: armature + rigid bone parenting + a pose-keyed action
+# --------------------------------------------------------------------------- #
+def make_armature(name, bones):
+    """Create an armature object and its bones.
+
+    `bones` is an ordered list of `(bone_name, head, tail, parent_name_or_None)`. Order is
+    part of the contract (RunCycleSpec.BoneNames); the first bone is the root, which is the
+    bone the vertical bob is keyed on.
+    """
+    require_blender()
+    data = bpy.data.armatures.new(name)
+    armature = bpy.data.objects.new(name, data)
+    bpy.context.collection.objects.link(armature)
+    bpy.context.view_layer.objects.active = armature
+    armature.select_set(True)
+    bpy.ops.object.mode_set(mode="EDIT")
+    created = {}
+    for bone_name, head, tail, parent in bones:
+        edit = data.edit_bones.new(bone_name)
+        edit.head = head
+        edit.tail = tail
+        # Not connected: a rigid rig's bones are positioned at the joints, and connecting
+        # them would drag a parent's tail onto its child's head.
+        edit.use_connect = False
+        if parent is not None:
+            edit.parent = created[parent]
+        created[bone_name] = edit
+    bpy.ops.object.mode_set(mode="OBJECT")
+    if len(data.bones) != len(bones):
+        raise SystemExit(f"error: armature {name} wanted {len(bones)} bones, "
+                         f"got {len(data.bones)}")
+    return armature
+
+
+def bone_tip_matrix(armature, bone_name):
+    """The parent matrix Blender (and its FBX exporter) uses for `parent_type == 'BONE'`:
+    the bone's TAIL frame, i.e. the bone matrix shifted one bone length along its own Y.
+
+    The exporter stores bone-parented objects in "bone tip space" and undoes exactly this
+    translation when writing the node's local transform, so using it as the parent inverse
+    is what keeps a rigidly parented island where it was modelled.
+    """
+    import mathutils  # noqa: E402  (only available inside Blender)
+    bone = armature.data.bones[bone_name]
+    return armature.matrix_world @ bone.matrix_local @ mathutils.Matrix.Translation(
+        (0.0, bone.length, 0.0))
+
+
+def parent_to_bone(obj, armature, bone_name):
+    """Rigidly attach `obj` to one bone without moving it (RunCycleSpec.SkinningRule:
+    "one island = one bone, weight 1.0" — no skinning, no blending, no re-topology)."""
+    require_blender()
+    bpy.context.view_layer.update()
+    before = obj.matrix_world.translation.copy()
+    obj.parent = armature
+    obj.parent_type = "BONE"
+    obj.parent_bone = bone_name
+    obj.matrix_parent_inverse = bone_tip_matrix(armature, bone_name).inverted()
+    bpy.context.view_layer.update()
+    drift = (obj.matrix_world.translation - before).length
+    if drift > 1e-5:
+        raise SystemExit(f"error: bone parenting moved {obj.name} onto {bone_name} by "
+                         f"{drift:.6f} m — the part would not sit on its joint")
+    return obj
+
+
+def bone_local_axis(armature, bone_name, world_axis):
+    """A world-space axis expressed in the bone's REST space.
+
+    Pose-bone keys rotate in bone space, so rotating "about world X" (leg pitch) or
+    "about world Z" (tail yaw) has to be converted through the bone's rest basis — that is
+    what makes the pitch independent of how the bone happens to be rolled.
+    """
+    require_blender()
+    import mathutils  # noqa: E402  (only available inside Blender)
+    basis = armature.data.bones[bone_name].matrix_local.to_3x3()
+    return (basis.inverted() @ mathutils.Vector(world_axis)).normalized()
+
+
+def make_pose_action(armature, action_name, keyed_poses):
+    """Key one pose per `(frame, {bone_name: {"location": xyz, "axis_angle": (axis, deg)}})`
+    pair and name the action (the FBX take, and therefore the Unity clip, is named after it).
+
+    EVERY bone is keyed on EVERY pose frame, even when it holds still: the imported clip
+    then carries one keyframe per pose on every curve, which is the shape the art contract
+    asserts (RunCycleSpec.KeyedFrames), and no curve can go missing because a bone happened
+    to be static. Linear interpolation is used between poses so a preview never overshoots;
+    the exported keys sit exactly on the pose frames, so it does not affect the FBX values.
+    """
+    require_blender()
+    import mathutils  # noqa: E402  (only available inside Blender)
+    for pose_bone in armature.pose.bones:
+        pose_bone.rotation_mode = "QUATERNION"
+        pose_bone.location = (0.0, 0.0, 0.0)
+        pose_bone.rotation_quaternion = (1.0, 0.0, 0.0, 0.0)
+
+    # Let Blender create the action (and its animation slot) through keyframe_insert
+    # instead of assigning a hand-made action: that is what keeps the keys bound on
+    # Blender 4.4+ slot-based actions.
+    if armature.animation_data is None:
+        armature.animation_data_create()
+    armature.animation_data.action = None
+
+    for frame, pose in keyed_poses:
+        for pose_bone in armature.pose.bones:
+            spec = pose.get(pose_bone.name, {})
+            pose_bone.location = spec.get("location", (0.0, 0.0, 0.0))
+            axis, degrees = spec.get("axis_angle", ((1.0, 0.0, 0.0), 0.0))
+            local_axis = bone_local_axis(armature, pose_bone.name, axis)
+            pose_bone.rotation_quaternion = mathutils.Quaternion(
+                local_axis, math.radians(degrees))
+            pose_bone.keyframe_insert(data_path="location", frame=frame)
+            pose_bone.keyframe_insert(data_path="rotation_quaternion", frame=frame)
+
+    action = armature.animation_data.action
+    if action is None:
+        raise SystemExit("error: keyframe_insert produced no action")
+    action.name = action_name
+    action.use_fake_user = True
+    for fcurve in action.fcurves:
+        for point in fcurve.keyframe_points:
+            point.interpolation = "LINEAR"
+    return action
+
+
+def export_fbx(path: Path, object_names=None, animation=False, bake_step=None):
+    """Write the FBX. `animation=True` (the rigged cat) also exports the armature and its
+    action as one FBX take, sampled on the authored pose frames only:
+
+    * `bake_anim_step` is set to the pose spacing (frames between poses), so the exporter
+      samples exactly the pose frames plus the loop-closing frame instead of every frame —
+      the imported clip then carries one keyframe per pose (RunCycleSpec.KeyedFrames).
+    * simplification must never touch the bones, so `bake_anim_use_all_bones` (which forces
+      keying on bones) is on: a simplified bone curve could lose a pose key.
+    * The take is exported by the GLOBAL animstack path, whose name is the SCENE name: on
+      the all-actions path Blender names the take "<object>|<action>" ("CatDash_Rig|Run"),
+      and Unity's Legacy importer names the clip after the take, so the scene is named
+      after the clip (RunCycleSpec.ClipName) by the caller instead.
+    * `add_leaf_bones = False` keeps the rig at exactly RunCycleSpec.BoneCount bones: the
+      leaf-bone helper would add extra tip bones that are not in the contract.
+    """
     require_blender()
     for obj in bpy.context.scene.objects:
         obj.select_set(True)
     if object_names:
         for obj in bpy.context.scene.objects:
             obj.select_set(obj.name in object_names)
+    object_types = {"MESH", "EMPTY"} | ({"ARMATURE"} if animation else set())
     wanted = {
         "filepath": str(path), "use_selection": True,
-        "object_types": {"MESH", "EMPTY"}, "axis_forward": "-Z", "axis_up": "Y",
+        "object_types": object_types, "axis_forward": "-Z", "axis_up": "Y",
         "apply_unit_scale": True, "global_scale": 1.0, "mesh_smooth_type": "FACE",
         "use_mesh_modifiers": True, "path_mode": "AUTO", "bake_space_transform": False,
     }
+    if animation:
+        if not bake_step or bake_step <= 0:
+            raise SystemExit("error: animation export needs a positive bake_step (pose spacing)")
+        wanted.update({
+            "use_anim": True, "bake_anim": True, "bake_anim_step": float(bake_step),
+            # use_all_bones keeps every sampled key on every BONE; the simplify factor would
+            # otherwise let the exporter drop a pose key. It still collapses the constant
+            # curves of the rigid, non-animated mesh objects, which is what we want there.
+            "bake_anim_use_all_bones": True, "bake_anim_use_all_actions": False,
+            "bake_anim_use_nla_strips": False, "bake_anim_force_startend_keying": False,
+            "bake_anim_simplify_factor": 1.0, "add_leaf_bones": False,
+            "primary_bone_axis": "Y", "secondary_bone_axis": "X",
+        })
     supported = set(bpy.ops.export_scene.fbx.get_rna_type().properties.keys())
     kwargs = {k: v for k, v in wanted.items() if k in supported}
     missing = set(wanted) - supported - {"filepath"}
@@ -796,7 +977,8 @@ def standard_args(description, extra=None, texture_size=1024):
 
 
 def finish(asset_name, args, texture_canvas, parts, material_name, object_name, pivot, forward,
-           extra=None, texture_name=None, texture_written=False):
+           extra=None, texture_name=None, texture_written=False, animation=False,
+           bake_step=None):
     """Shared tail: write texture + metas + FBX + report."""
     root = repo_root(Path(args.output).resolve())
     output = Path(args.output).resolve()
@@ -808,9 +990,9 @@ def finish(asset_name, args, texture_canvas, parts, material_name, object_name, 
         texture_canvas.save(texture_path)
     has_texture = texture_canvas is not None or (texture_written and texture_path.exists())
     ensure_asset_folders([output, texture_path])
-    export_fbx(output)
+    export_fbx(output, animation=animation, bake_step=bake_step)
     if not args.no_meta:
-        write_asset_meta(output, "model")
+        write_asset_meta(output, "model", animation=animation)
         if has_texture:
             write_asset_meta(texture_path, "png", max_size=args.texture_size)
     summary = [part_summary(p[0], p[1], material_name) for p in parts]

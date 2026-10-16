@@ -68,6 +68,28 @@ namespace CatDash.Art
             return (int)pose * (FrameCount / PoseCount);
         }
 
+        /// <summary>
+        /// Frames the embedded clip is keyed on: one per pose (<see cref="FrameOf"/>), plus
+        /// <see cref="FrameCount"/> — the Contact pose again, so the 12-frame loop closes
+        /// instead of popping from the airborne pose back to the contact pose.
+        ///
+        /// A channel whose value repeats the one before it can carry four keys rather than
+        /// five, because the FBX exporter merges a trailing duplicate: the tail yaw reaches the
+        /// same angle at the Air and Contact poses, so its curves lose the closing key. The clip
+        /// as a whole is still keyed on exactly these frames, and no channel is keyed anywhere
+        /// else — which is what the art tests assert.
+        /// </summary>
+        public static int[] KeyedFrames()
+        {
+            var frames = new int[PoseCount + 1];
+            for (int index = 0; index < PoseCount; index++)
+            {
+                frames[index] = FrameOf((RunPose)index);
+            }
+            frames[PoseCount] = FrameCount;
+            return frames;
+        }
+
         /// <summary>Loop fraction of a pose (see <see cref="PosePhase"/>).</summary>
         public static float PhaseOf(RunPose pose)
         {
@@ -103,7 +125,14 @@ namespace CatDash.Art
         /// <summary>Hind legs are half a cycle behind the front legs.</summary>
         public const float HindPhaseOffset = 0.5f;
 
-        /// <summary>Left/right legs of a pair are a quarter cycle out of phase for a lively gait.</summary>
+        /// <summary>
+        /// Left/right legs of a pair are a quarter cycle out of phase for a lively gait.
+        ///
+        /// Not expressible in this six-bone rig: a pair shares one bone and therefore swings
+        /// rigidly together (<see cref="SkinningRule"/>), so the embedded Run clip keys the
+        /// front pair at the base phase and the hind pair at <see cref="HindPhaseOffset"/>.
+        /// This offset waits for a wider rig, it is not a bug in the clip.
+        /// </summary>
         public const float SidePhaseOffset = 0.25f;
 
         /// <summary>
@@ -145,8 +174,17 @@ namespace CatDash.Art
         /// <summary>Pivot at the ground between the paws; ~0.75 m long, ~0.67 m to the ear tips.</summary>
         public const string PivotNote = "pivot at ground level, centred between the paws; y=0 is the street";
 
-        /// <summary>No animations are embedded in Cat.fbx; the runtime must not expect a clip yet.</summary>
-        public const bool HasEmbeddedAnimation = false;
+        /// <summary>
+        /// Cat.fbx carries the six-bone rig and one embedded clip: the take <c>Run</c> (see
+        /// <see cref="ClipName"/>), 0.5 s long, in place, keyed on <see cref="KeyedFrames"/>.
+        ///
+        /// How it is built (docs/ASSETS.md has the long form): every island is rigidly parented
+        /// to its bone, the vertical bob is a translation on the first bone of
+        /// <see cref="BoneNames"/>, the Contact pose is the model's rest pose, and Unity imports
+        /// it as a LEGACY clip (the animations block of Assets/Art/Generated/Cat.fbx.meta), so
+        /// the runtime drives it with an <c>Animation</c> component, not a Mecanim Animator.
+        /// </summary>
+        public const bool HasEmbeddedAnimation = true;
 
         // ---- Validation helpers --------------------------------------------------
         /// <summary>
