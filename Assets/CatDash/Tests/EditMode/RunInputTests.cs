@@ -147,4 +147,35 @@ public class RunInputTests
         UnityEngine.Object.DestroyImmediate(go2);
         RunController.ResetStatics();
     }
+
+    [Test]
+    public void Pause_FreezeDistance_WhenInputPauseCalled()
+    {
+        rc.BeginRun();
+        float before = rc.DistanceMeters;
+        input.OnApplicationPause(true);
+        rc.Tick(0.5f);
+        Assert.AreEqual(before, rc.DistanceMeters, 0.001f);
+    }
+
+    [Test]
+    public void Resume_AllowsDistanceAdvance_AfterInputPause()
+    {
+        rc.BeginRun();
+        input.OnApplicationPause(true);
+        input.OnApplicationPause(false);
+        Assert.IsTrue(input.InputEnabled);
+        float before = rc.DistanceMeters;
+        rc.Tick(0.5f);
+        Assert.Greater(rc.DistanceMeters, before);
+    }
+
+    [Test]
+    public void SinglePauseCall_DoesNotRecurse()
+    {
+        rc.BeginRun();
+        int before = rc.PauseCallCount;
+        input.OnApplicationPause(true);
+        Assert.AreEqual(before + 1, rc.PauseCallCount);
+    }
 }

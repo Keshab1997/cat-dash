@@ -12,6 +12,7 @@ namespace CatDash.Gameplay
         public event Action<int> LaneRequested;
 
         private bool inputEnabled = false;
+        private bool syncing = false;
         private bool tracking = false;
         private Vector2 startPos = Vector2.zero;
         private RunController registeredController;
@@ -136,15 +137,51 @@ namespace CatDash.Gameplay
         /// and the self-registration path can drive pause/resume directly.</summary>
         public void OnApplicationPause(bool pauseStatus)
         {
-            if (pauseStatus) DisableInput();
-            else if ((ResolveController() != null && ResolveController().IsRunning) || (ResolveController() == null && RunController.Active != null && RunController.Active.IsRunning)) EnableInput();
+            if (syncing) return;
+            syncing = true;
+            try
+            {
+                var rc = ResolveController();
+                if (pauseStatus)
+                {
+                    DisableInput();
+                    if (rc != null) rc.OnApplicationPause(true);
+                }
+                else
+                {
+                    if (rc == null || rc.IsRunning) EnableInput();
+                    if (rc != null) rc.OnApplicationPause(false);
+                }
+            }
+            finally
+            {
+                syncing = false;
+            }
         }
 
         /// <summary>Public seam; see OnApplicationPause.</summary>
         public void OnApplicationFocus(bool hasFocus)
         {
-            if (!hasFocus) DisableInput();
-            else if ((ResolveController() != null && ResolveController().IsRunning) || (ResolveController() == null && RunController.Active != null && RunController.Active.IsRunning)) EnableInput();
+            if (syncing) return;
+            syncing = true;
+            try
+            {
+                var rc = ResolveController();
+                if (!hasFocus)
+                {
+                    DisableInput();
+                    if (rc != null) rc.OnApplicationFocus(false);
+                }
+                else
+                {
+                    if (rc == null || rc.IsRunning) EnableInput();
+                    if (rc != null) rc.OnApplicationFocus(true);
+                }
+            }
+            finally
+            {
+                syncing = false;
+            }
         }
     }
 }
