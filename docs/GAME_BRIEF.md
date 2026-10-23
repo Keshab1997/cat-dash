@@ -53,7 +53,8 @@ production release or Play upload in this first implementation batch.
 
 ## Readiness / unknowns
 - Repo contains kit + starter smoke tests and generic prototype scene generator only.
-- Exact Editor pinned to 6000.3.3f1; newer patch migration needs owner agreement.
+- Exact Editor pinned to 6000.3.27f1 (6.3 LTS). Bumped from 6000.3.3f1 on 2026-10-23 with owner
+  agreement, because 6000.3.3f1 is no longer offered in Unity Hub; staying on the same 6.3 stream.
 - Unity Editor, cat assets, gameplay and CatDash scene have NOT been implemented here.
 - Owner reported credential setup complete, but THIS new repo has no copied secrets;
   verify secret names/presence without asking for values before manual Unity CI.

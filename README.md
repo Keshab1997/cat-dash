@@ -19,7 +19,7 @@ Kit revision is recorded in unity-kit.lock.json. Team: Captain + Agent A + Agent
 human forwards briefs/reports. Optional [Idea Partner](agents/IDEA.md) for later design discussion.
 
 ## Current status
-Included: Unity 6000.3.3f1 starter source, minimal physics smoke tests, kit tooling,
+Included: Unity 6000.3.27f1 (6.3 LTS) starter source, minimal physics smoke tests, kit tooling,
 manual Unity Android workflow, filled game brief, Captain prompt and AI concept art.
 **Not implemented:** cat runner gameplay, actual cat/obstacle 3D assets, run animation,
 CatDash scene, polished UI or device-tested build. The kit's generic sphere prototype

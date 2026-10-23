@@ -9,7 +9,7 @@ Set unity-kit.json: real packageName, productName, semver versionName. Existing
 Play apps MUST keep their existing package ID and upload key. Keep projectPath `.`.
 Read AGENTS.md, fill docs/GAME_BRIEF.md, commit to main. Workflows remain manual.
 
-The starter pins **6000.3.3f1**, a known Unity 6.3 release baseline, NOT a claim to
+The starter pins **6000.3.27f1**, the current Unity 6.3 LTS patch available in Unity Hub, NOT a claim to
 be the latest patched editor. Before first build, verify a GameCI Android image
 exists for your chosen exact version, check release/security notes, and choose a
 newer compatible patch if needed via installer --unity-version. No silent upgrades.
